@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detector de Producto Ganador</title>
+<meta name="description" content="Microapp para evaluar el potencial comercial de un producto para ecommerce en Colombia.">
+<style>
+:root{
+  --bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--line:#e5e7eb;
+  --accent:#5b5cf0;--accent2:#7c3aed;--good:#16803c;--warn:#b45309;--bad:#c62828;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,#171a35,#3730a3 60%,#6d28d9);color:#fff;padding:42px 20px 54px}
+.wrap{max-width:1120px;margin:auto}
+.badge{display:inline-flex;padding:7px 12px;border:1px solid rgba(255,255,255,.25);border-radius:999px;background:rgba(255,255,255,.08);font-size:12px;font-weight:700;letter-spacing:.3px}
+h1{font-size:clamp(30px,5vw,48px);line-height:1.02;margin:18px 0 12px}
+header p{max-width:720px;margin:0;color:#dfe3ff;font-size:16px;line-height:1.6}
+main{margin-top:-30px;padding:0 20px 60px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 30px rgba(16,24,40,.06);padding:24px}
+.card h2{margin:0 0 18px;font-size:19px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field.full{grid-column:1/-1}
+label{font-size:13px;font-weight:700}
+input,select{width:100%;border:1px solid #d7dbe5;border-radius:10px;padding:12px 13px;font-size:15px;outline:none;background:#fff}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,92,240,.1)}
+.help{font-size:11px;color:var(--muted)}
+button{border:0;border-radius:11px;padding:13px 18px;font-weight:800;font-size:14px;cursor:pointer}
+.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.secondary{background:#eef0ff;color:#3536a3}
+.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.result{margin-top:20px}
+.scorebox{display:flex;align-items:center;gap:22px;padding:20px;border-radius:16px;background:#f7f7ff;border:1px solid #e1e2ff}
+.score{width:110px;height:110px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent) calc(var(--score)*1%),#e8eaf5 0);position:relative;flex:none}
+.score:after{content:"";position:absolute;inset:9px;background:#fff;border-radius:50%}
+.score strong{position:relative;z-index:2;font-size:28px}
+.verdict{font-size:21px;font-weight:900;margin-bottom:5px}
+.sub{color:var(--muted);line-height:1.5;font-size:14px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:15px}
+.metric{border:1px solid var(--line);border-radius:12px;padding:14px}
+.metric span{display:block;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase}
+.metric strong{display:block;font-size:19px;margin-top:5px}
+.bars{display:grid;gap:11px;margin-top:18px}
+.barrow{display:grid;grid-template-columns:125px 1fr 40px;gap:9px;align-items:center;font-size:12px}
+.track{height:8px;background:#eceef4;border-radius:20px;overflow:hidden}
+.fill{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.insights{margin-top:18px;display:grid;gap:9px}
+.insight{padding:12px 14px;border-radius:11px;background:#f8fafc;border:1px solid var(--line);font-size:13px;line-height:1.45}
+.insight.good{border-left:4px solid var(--good)} .insight.warn{border-left:4px solid var(--warn)} .insight.bad{border-left:4px solid var(--bad)}
+.empty{color:var(--muted);font-size:14px;line-height:1.6;padding:8px 0}
+footer{text-align:center;color:#7a8496;font-size:12px;padding:25px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.scorebox{align-items:flex-start}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <span class="badge">MICROAPP · ECOMMERCE COLOMBIA</span>
+    <h1>Detector de Producto Ganador</h1>
+    <p>Evalúa rápidamente si un producto tiene potencial para ser probado con publicidad, antes de poner dinero en Meta Ads o TikTok Ads.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <section class="card">
+      <h2>1. Datos económicos</h2>
+      <div class="fields">
+        <div class="field full">
+          <label>Nombre del producto</label>
+          <input id="name" placeholder="Ej. Rodillera térmica">
+        </div>
+        <div class="field">
+          <label>Costo del producto (COP)</label>
+          <input id="cost" type="number" min="0" value="25000">
+        </div>
+        <div class="field">
+          <label>Precio de venta (COP)</label>
+          <input id="price" type="number" min="0" value="79900">
+        </div>
+        <div class="field">
+          <label>Envío asumido por tienda (COP)</label>
+          <input id="shipping" type="number" min="0" value="8000">
+        </div>
+        <div class="field">
+          <label>Otros costos por venta (COP)</label>
+          <input id="other" type="number" min="0" value="2000">
+        </div>
+        <div class="field">
+          <label>CPA publicitario esperado (COP)</label>
+          <input id="cpa" type="number" min="0" value="18000">
+          <span class="help">Si aún no lo conoces, usa una estimación.</span>
+        </div>
+        <div class="field">
+          <label>Devoluciones / no recibidos (%)</label>
+          <input id="returns" type="number" min="0" max="80" value="10">
+        </div>
+      </div>
+
+      <h2 style="margin-top:28px">2. Potencial comercial</h2>
+      <div class="fields">
+        <div class="field">
+          <label>Demanda percibida · 1–5</label>
+          <select id="demand"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+        </div>
+        <div class="field">
+          <label>Competencia · 1–5</label>
+          <select id="competition"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+          <span class="help">5 = mercado muy competido.</span>
+        </div>
+        <div class="field">
+          <label>Potencial visual · 1–5</label>
+          <select id="visual"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+          <span class="help">¿Se demuestra bien en imagen/video?</span>
+        </div>
+        <div class="field">
+          <label>Diferenciación · 1–5</label>
+          <select id="diff"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="analyze()">Analizar producto</button>
+        <button class="secondary" onclick="resetApp()">Restablecer</button>
+      </div>
+    </section>
+
+    <section class="card result">
+      <h2>Resultado del análisis</h2>
+      <div id="output" class="empty">Completa los datos y pulsa <b>Analizar producto</b>. La app calculará margen, CPA máximo, ROAS de equilibrio y una puntuación de potencial.</div>
+    </section>
+  </div>
+</main>
+
+<footer>Detector de Producto Ganador · Versión 1.0 · Herramienta orientativa, no sustituye pruebas reales de mercado.</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const money = n => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n);
+
+function val(id){ return Number($(id).value)||0; }
+
+function analyze(){
+  const name = $('name').value.trim() || 'Producto sin nombre';
+  const cost=val('cost'), price=val('price'), shipping=val('shipping'), other=val('other');
+  const cpa=val('cpa'), returns=val('returns');
+  const demand=val('demand'), competition=val('competition'), visual=val('visual'), diff=val('diff');
+
+  if(price<=0 || cost<0){ alert('Ingresa un precio de venta válido.'); return; }
+
+  const gross = price-cost-shipping-other;
+  const margin = price ? (gross/price)*100 : 0;
+  const maxCPA = Math.max(0,gross);
+  const breakEvenROAS = gross>0 ? price/gross : 999;
+  const delivered = Math.max(0,1-returns/100);
+  const riskAdjustedGross = gross*delivered - (price*(1-delivered)*0.12);
+  const adjustedMaxCPA = Math.max(0,riskAdjustedGross);
+
+  // Score: economics 45%, demand 20%, visual 15%, differentiation 15%, competition 5%.
+  const econ = Math.max(0,Math.min(100, margin*2.2 + (maxCPA>=cpa && cpa>0 ? 20 : 0)));
+  const score = Math.round(
+    econ*.45 +
+    (demand/5*100)*.20 +
+    (visual/5*100)*.15 +
+    (diff/5*100)*.15 +
+    ((6-competition)/5*100)*.05
+  );
+
+  let verdict, cls;
+  if(score>=80){verdict='PRODUCTO MUY PROMETEDOR'; cls='good'}
+  else if(score>=65){verdict='BUEN CANDIDATO PARA TEST'; cls='good'}
+  else if(score>=50){verdict='REQUIERE VALIDACIÓN'; cls='warn'}
+  else {verdict='PRODUCTO DE ALTO RIESGO'; cls='bad'}
+
+  const profitAtCPA = gross-cpa;
+  const adjustedProfit = riskAdjustedGross-cpa;
+  const insights=[];
+
+  if(margin>=45) insights.push(['good','Margen saludable: el producto deja espacio para absorber publicidad y operación.']);
+  else if(margin>=30) insights.push(['warn','Margen medio: necesitarás controlar muy bien el CPA y los costos de adquisición.']);
+  else insights.push(['bad','Margen bajo: es difícil escalar este producto con publicidad sin mejorar precio o costos.']);
+
+  if(cpa>0 && cpa<=maxCPA*.7) insights.push(['good','Tu CPA esperado está por debajo del CPA máximo con un colchón razonable.']);
+  else if(cpa>0 && cpa<=maxCPA) insights.push(['warn','El CPA esperado consume buena parte del margen. Hay poco espacio para errores.']);
+  else insights.push(['bad','El CPA esperado supera el CPA máximo: con estos números la venta no sería rentable.']);
+
+  if(demand>=4) insights.push(['good','La demanda percibida es alta. Prioriza creativos que conecten con un problema claro.']);
+  if(visual>=4) insights.push(['good','Tiene buen potencial visual: ideal para UGC, demostraciones y antes/después no médico.']);
+  if(diff<=2) insights.push(['warn','La diferenciación es baja. Necesitas una oferta, mecanismo o ángulo distinto al de la competencia.']);
+  if(competition>=4) insights.push(['warn','Hay alta competencia. Evita competir únicamente por precio.']);
+  if(returns>=15) insights.push(['bad','La tasa de devoluciones/no recibidos es elevada; en contraentrega puede cambiar radicalmente la rentabilidad.']);
+
+  $('output').innerHTML = `
+    <div class="scorebox">
+      <div class="score" style="--score:${score}"><strong>${score}</strong></div>
+      <div>
+        <div class="verdict">${verdict}</div>
+        <div class="sub"><b>${escapeHtml(name)}</b> · puntuación basada en economía, demanda, potencial creativo, diferenciación y competencia.</div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><span>Margen antes de ads</span><strong>${margin.toFixed(1)}%</strong></div>
+      <div class="metric"><span>CPA máximo</span><strong>${money(maxCPA)}</strong></div>
+      <div class="metric"><span>ROAS equilibrio</span><strong>${breakEvenROAS>=999?'—':breakEvenROAS.toFixed(2)+'x'}</strong></div>
+      <div class="metric"><span>Utilidad con CPA</span><strong>${money(profitAtCPA)}</strong></div>
+    </div>
+    <div class="bars">
+      ${bar('Economía',econ)}
+      ${bar('Demanda',demand*20)}
+      ${bar('Potencial visual',visual*20)}
+      ${bar('Diferenciación',diff*20)}
+      ${bar('Competencia favorable',(6-competition)*20)}
+    </div>
+    <div class="insights">
+      ${insights.map(x=>`<div class="insight ${x[0]}">${x[1]}</div>`).join('')}
+      <div class="insight"><b>Con devoluciones estimadas:</b> utilidad máxima aproximada antes de publicidad: ${money(adjustedMaxCPA)} · utilidad con CPA estimado: <b>${money(adjustedProfit)}</b>.</div>
+    </div>
+  `;
+}
+function bar(label,n){return `<div class="barrow"><span>${label}</span><div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,n))}%"></div></div><b>${Math.round(n)}</b></div>`}
+function escapeHtml(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function resetApp(){
+  ['name'].forEach(id=>$(id).value='');
+  $('cost').value=25000;$('price').value=79900;$('shipping').value=8000;$('other').value=2000;
+  $('cpa').value=18000;$('returns').value=10;
+  $('demand').value=3;$('competition').value=3;$('visual').value=3;$('diff').value=3;
+  $('output').innerHTML='Completa los datos y pulsa <b>Analizar producto</b>. La app calculará margen, CPA máximo, ROAS de equilibrio y una puntuación de potencial.';
+}
+</script>
+</body>
+</html>
