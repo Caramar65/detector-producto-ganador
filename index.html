@@ -1,12 +1,881 @@
-<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Detector de Producto Ganador — V3</title><style>:root{--bg:#f4f6fb;--card:#fff;--ink:#172033;--muted:#667085;--primary:#5b45ea;--primary2:#7a36e8;--line:#e6e8ef;--warn:#b86b00}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}.hero{background:linear-gradient(115deg,#24265d,#4b27c8,#7c2ee8);color:#fff;padding:34px 24px 38px}.wrap{max-width:1180px;margin:auto}.badge{display:inline-block;border:1px solid #ffffff4d;background:#ffffff1a;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:800}h1{font-size:clamp(30px,4vw,52px);margin:14px 0 8px;line-height:1.05}.hero p{max-width:800px;font-size:16px;line-height:1.55;margin:0;opacity:.92}main{padding:24px}.grid{display:grid;grid-template-columns:390px 1fr;gap:20px;align-items:start}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 28px #1720330f;padding:20px}h2{font-size:19px;margin:0 0 16px}.sub,.note{color:var(--muted);font-size:13px;line-height:1.5}label{display:block;font-weight:750;font-size:12px;margin:14px 0 7px}input,textarea{width:100%;border:1px solid #d8dce7;border-radius:10px;padding:12px 13px;font-size:14px;outline:none;background:#fff}textarea{min-height:86px;resize:vertical}input:focus,textarea:focus{border-color:#7458f4;box-shadow:0 0 0 3px #7458f41f}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:10px;margin-top:18px}.btn{border:0;border-radius:11px;padding:12px 15px;font-weight:800;cursor:pointer}.primary{background:linear-gradient(90deg,var(--primary),var(--primary2));color:#fff;flex:1}.ghost{background:#eef0ff;color:#3c32a8}.status{display:none;margin-top:14px;padding:12px;border-radius:10px;background:#f3f0ff;color:#4b3bc0;font-size:13px}.status.show{display:block}.empty{min-height:470px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted)}.report{display:none}.report.show{display:block}.score{display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:center;border:1px solid var(--line);border-radius:15px;padding:18px;background:#fbfbff}.ring{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--primary) var(--score,0%),#e8eaf3 0);position:relative}.ring:after{content:"";width:96px;height:96px;border-radius:50%;background:#fff;position:absolute}.scoreNum{position:relative;z-index:1;font-size:30px;font-weight:900}.decision{font-size:22px;font-weight:900}.confidence{margin-top:7px;color:var(--muted);font-size:13px}.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.chip{padding:7px 9px;border-radius:999px;background:#f0efff;color:#4b3bc0;font-size:12px;font-weight:750}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}.metric{border:1px solid var(--line);border-radius:12px;padding:12px}.metric b{display:block;font-size:20px;margin-top:4px}.metric span{font-size:11px;color:var(--muted)}.section{border-top:1px solid var(--line);padding-top:17px;margin-top:18px}.section h3{font-size:15px;margin:0 0 10px}.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}.list{margin:0;padding-left:20px}.list li{margin:7px 0;line-height:1.45;font-size:13px}.risk{padding:12px;border-left:4px solid var(--warn);background:#fffaf1;border-radius:8px;font-size:13px;line-height:1.5}.source{display:block;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;color:#4338a8;text-decoration:none}.source:hover{text-decoration:underline}@media(max-width:850px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.score{grid-template-columns:1fr}.cols{grid-template-columns:1fr}.ring{margin:auto}}</style></head><body><header class="hero"><div class="wrap"><span class="badge">MICROAPP · ECOMMERCE COLOMBIA · V3.0 AI</span><h1>Detector de Producto Ganador</h1><p>Investiga automáticamente un producto, analiza mercado, competencia, creatividad y economía, y te dice si vale la pena pasar al test.</p></div></header><main class="wrap"><div class="grid"><section class="card"><h2>🔎 Investigar producto</h2><div class="sub">Ya no tienes que asignar demanda, competencia o potencial visual manualmente. La investigación IA genera esas estimaciones a partir de señales encontradas en la web.</div><label>Nombre del producto *</label><input id="product" placeholder="Ej. Rodillera térmica"><label>Descripción o características (opcional)</label><textarea id="description" placeholder="Ej. Rodillera de neopreno, recargable, calor ajustable, velcro..."></textarea><label>URL del proveedor o página del producto (opcional)</label><input id="url" placeholder="https://..."><div class="two"><div><label>Costo producto (COP) *</label><input id="cost" type="number" min="0" placeholder="30000"></div><div><label>Envío asumido (COP)</label><input id="shipping" type="number" min="0" placeholder="12000" value="0"></div></div><div class="two"><div><label>Otros costos por venta (COP)</label><input id="other" type="number" min="0" placeholder="4000" value="0"></div><div><label>Precio de venta (COP) *</label><input id="price" type="number" min="0" placeholder="79900"></div></div><label>Devoluciones / no recibidos estimados (%)</label><input id="returns" type="number" min="0" max="100" step="0.1" value="5"><div class="actions"><button class="btn primary" id="research">🔍 INVESTIGAR PRODUCTO</button><button class="btn ghost" id="demo">Demo</button></div><div class="status" id="status"></div><p class="note" style="margin-top:14px">La V3 distingue entre señales encontradas en fuentes externas y estimaciones del modelo. La recomendación no garantiza ventas; sirve para priorizar qué productos merecen un test real.</p></section><section class="card"><div id="empty" class="empty"><div><div style="font-size:48px">🧠</div><h2>Listo para investigar</h2><p>Introduce un producto y sus números básicos.<br>La IA hará la parte pesada.</p></div></div><div id="report" class="report"></div></section></div></main><script>const $=id=>document.getElementById(id);const money=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n)||0);function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function list(a){return(a||[]).map(x=>`<li>${esc(x)}</li>`).join('')}function demoData(){return{product:'Rodillera térmica',score:88,confidence:82,decision:'TEST RECOMENDADO',platform:'Meta Ads',economics:{marginPct:42.4,breakEvenRoaS:2.36,maxCpa:33900,targetCpa:18900,profitAtTarget:15000},dimensions:{demand:86,competition:62,visual:94,differentiation:78,impulse:84},summary:'Producto con buena economía y una demostración visual muy clara. La principal oportunidad es construir diferenciación sobre el uso y la oferta, no competir solo por precio.',risks:['Competencia elevada en marketplaces y anuncios similares.','El CPA real debe validarse con un test controlado.'],angles:['Personas que pasan largas jornadas de pie.','Calor localizado que puedes incorporar a tu rutina.','Demostración del producto: problema → colocación → funcionamiento.'],test:['3 ángulos × 2 creativos iniciales.','Priorizar UGC demostrativo.','Cortar o ajustar si el CPA supera el objetivo después de suficiente señal.'],evidence:['La demostración de funcionamiento es muy fácil de convertir en contenido corto.','El margen permite un CPA de prueba razonable con los costos introducidos.'],sources:[]}}function render(d){const pct=Math.max(0,Math.min(100,Number(d.score)||0));const dims=d.dimensions||{},e=d.economics||{};$('empty').style.display='none';$('report').classList.add('show');$('report').innerHTML=`<div class="score" style="--score:${pct}%"><div class="ring"><span class="scoreNum">${pct}</span></div><div><div class="decision">${esc(d.decision||'RESULTADO')}</div><div style="font-weight:800;margin-top:6px">${esc(d.product||'')}</div><div class="confidence">Confianza del análisis: <b>${Number(d.confidence||0)}%</b></div><div class="chips"><span class="chip">📱 ${esc(d.platform||'Por definir')}</span><span class="chip">🌐 Investigación web</span><span class="chip">🧠 IA</span></div></div></div><div class="metrics">${[['Economía',e.marginPct!=null?e.marginPct+'%':'—'],['CPA máximo',money(e.maxCpa)],['CPA objetivo',money(e.targetCpa)],['ROAS equilibrio',e.breakEvenRoaS?Number(e.breakEvenRoaS).toFixed(2)+'x':'—']].map(x=>`<div class="metric"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div><div class="section"><h3>📊 Evaluación automática</h3><div class="metrics">${[['Demanda',dims.demand],['Competencia',dims.competition],['Potencial visual',dims.visual],['Diferenciación',dims.differentiation],['Impulso',dims.impulse]].map(x=>`<div class="metric"><span>${x[0]}</span><b>${x[1]??'—'}/100</b></div>`).join('')}</div></div><div class="section"><h3>🧠 Conclusión</h3><p style="font-size:14px;line-height:1.6">${esc(d.summary||'')}</p></div><div class="section cols"><div><h3>🎯 Ángulos recomendados</h3><ol class="list">${list(d.angles)}</ol></div><div><h3>🧪 Plan inicial de test</h3><ol class="list">${list(d.test)}</ol></div></div><div class="section"><h3>⚠️ Riesgos principales</h3><div class="risk">${(d.risks||[]).map(esc).join(' · ')||'Sin riesgos destacados.'}</div></div><div class="section"><h3>🔎 Señales utilizadas</h3><ul class="list">${list(d.evidence)}</ul></div><div class="section"><h3>🌐 Fuentes consultadas</h3>${(d.sources||[]).map(s=>`<a class="source" target="_blank" rel="noopener" href="${esc(s.url)}">${esc(s.title||s.url)}</a>`).join('')||'<p class="note">No se devolvieron enlaces de fuente en esta ejecución.</p>'}</div><p class="note">Los scores de mercado son estimaciones analíticas, no mediciones absolutas de ventas. Valida siempre con un test real. El CPA objetivo depende de tus costos, tasa de no recibido/devolución y utilidad deseada.</p>`}$('demo').onclick=()=>render(demoData());$('research').onclick=async()=>{const product=$('product').value.trim();if(!product){alert('Escribe el nombre del producto.');return}const payload={
-  productName: product,
-  description:$('description').value.trim(),
-  url:$('url').value.trim(),
-  cost:Number($('cost').value)||0,
-  shipping:Number($('shipping').value)||0,
-  otherCosts:Number($('other').value)||0,
-  salePrice:Number($('price').value)||0,
-  returns:Number($('returns').value)||0
-};if(!payload.cost||!payload.price){alert('Para analizar economía necesitas costo y precio de venta.');return}$('status').classList.add('show');$('status').textContent='🔎 Investigando mercado, competencia, contenido y economía...';$('research').disabled=true;try{const r=await fetch('/api/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw new Error(data.error||'No se pudo completar la investigación.');render(data);$('status').textContent='✅ Investigación terminada.'}catch(e){$('status').textContent='❌ '+e.message;alert(e.message)}finally{$('research').disabled=false}};</script></body></html>
+from pathlib import Path
 
+html = r'''<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detector de Producto Ganador — V3.0</title>
+  <style>
+    :root{
+      --bg:#f4f6fb;
+      --card:#ffffff;
+      --ink:#172033;
+      --muted:#667085;
+      --primary:#5b45ea;
+      --primary2:#7a36e8;
+      --line:#e6e8ef;
+      --ok:#16803c;
+      --warn:#b86b00;
+      --danger:#b42318;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+    }
+    .hero{
+      background:linear-gradient(115deg,#24265d,#4b27c8,#7c2ee8);
+      color:#fff;
+      padding:34px 24px 38px;
+    }
+    .wrap{max-width:1180px;margin:auto}
+    .badge{
+      display:inline-block;
+      border:1px solid #ffffff4d;
+      background:#ffffff1a;
+      padding:7px 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+    }
+    h1{
+      font-size:clamp(30px,4vw,52px);
+      margin:14px 0 8px;
+      line-height:1.05;
+    }
+    .hero p{max-width:820px;font-size:16px;line-height:1.55;margin:0;opacity:.92}
+    main{padding:24px}
+    .grid{
+      display:grid;
+      grid-template-columns:390px 1fr;
+      gap:20px;
+      align-items:start;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:0 8px 28px #1720330f;
+      padding:20px;
+    }
+    h2{font-size:19px;margin:0 0 16px}
+    .sub,.note{color:var(--muted);font-size:13px;line-height:1.5}
+    label{
+      display:block;
+      font-weight:750;
+      font-size:12px;
+      margin:14px 0 7px;
+    }
+    input,textarea{
+      width:100%;
+      border:1px solid #d8dce7;
+      border-radius:10px;
+      padding:12px 13px;
+      font-size:14px;
+      outline:none;
+      background:#fff;
+    }
+    textarea{min-height:86px;resize:vertical}
+    input:focus,textarea:focus{
+      border-color:#7458f4;
+      box-shadow:0 0 0 3px #7458f41f;
+    }
+    input.invalid{
+      border-color:#d92d20;
+      box-shadow:0 0 0 3px #d92d2014;
+    }
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .actions{display:flex;gap:10px;margin-top:18px}
+    .btn{
+      border:0;
+      border-radius:11px;
+      padding:12px 15px;
+      font-weight:800;
+      cursor:pointer;
+    }
+    .btn:disabled{opacity:.65;cursor:not-allowed}
+    .primary{
+      background:linear-gradient(90deg,var(--primary),var(--primary2));
+      color:#fff;
+      flex:1;
+    }
+    .ghost{background:#eef0ff;color:#3c32a8}
+    .status{
+      display:none;
+      margin-top:14px;
+      padding:12px;
+      border-radius:10px;
+      background:#f3f0ff;
+      color:#4b3bc0;
+      font-size:13px;
+    }
+    .status.show{display:block}
+    .status.error{background:#fff1f0;color:var(--danger)}
+    .empty{
+      min-height:470px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      color:var(--muted);
+    }
+    .report{display:none}
+    .report.show{display:block}
+    .score{
+      display:grid;
+      grid-template-columns:150px 1fr;
+      gap:18px;
+      align-items:center;
+      border:1px solid var(--line);
+      border-radius:15px;
+      padding:18px;
+      background:#fbfbff;
+    }
+    .ring{
+      width:128px;
+      height:128px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      background:conic-gradient(var(--primary) var(--score,0%),#e8eaf3 0);
+      position:relative;
+    }
+    .ring:after{
+      content:"";
+      width:96px;
+      height:96px;
+      border-radius:50%;
+      background:#fff;
+      position:absolute;
+    }
+    .scoreNum{position:relative;z-index:1;font-size:30px;font-weight:900}
+    .decision{font-size:22px;font-weight:900}
+    .confidence{margin-top:7px;color:var(--muted);font-size:13px}
+    .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+    .chip{
+      padding:7px 9px;
+      border-radius:999px;
+      background:#f0efff;
+      color:#4b3bc0;
+      font-size:12px;
+      font-weight:750;
+    }
+    .metrics{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px;
+      margin:14px 0;
+    }
+    .metric{
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:12px;
+    }
+    .metric b{display:block;font-size:20px;margin-top:4px}
+    .metric span{font-size:11px;color:var(--muted)}
+    .section{
+      border-top:1px solid var(--line);
+      padding-top:17px;
+      margin-top:18px;
+    }
+    .section h3{font-size:15px;margin:0 0 10px}
+    .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .list{margin:0;padding-left:20px}
+    .list li{margin:7px 0;line-height:1.45;font-size:13px}
+    .risk{
+      padding:12px;
+      border-left:4px solid var(--warn);
+      background:#fffaf1;
+      border-radius:8px;
+      font-size:13px;
+      line-height:1.5;
+    }
+    .source{
+      display:block;
+      padding:8px 0;
+      border-bottom:1px solid var(--line);
+      font-size:12px;
+      color:#4338a8;
+      text-decoration:none;
+    }
+    .source:hover{text-decoration:underline}
+    .help{
+      margin-top:12px;
+      padding:10px 12px;
+      background:#f8f9fc;
+      border:1px solid var(--line);
+      border-radius:10px;
+      font-size:12px;
+      line-height:1.45;
+      color:var(--muted);
+    }
+    @media(max-width:850px){
+      .grid{grid-template-columns:1fr}
+      .metrics{grid-template-columns:1fr 1fr}
+      .score{grid-template-columns:1fr}
+      .cols{grid-template-columns:1fr}
+      .ring{margin:auto}
+    }
+  </style>
+</head>
 
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <span class="badge">MICROAPP · ECOMMERCE COLOMBIA · V3.0 AI</span>
+      <h1>Detector de Producto Ganador</h1>
+      <p>
+        Introduce un producto y sus números básicos. La IA analiza su potencial
+        comercial y calcula si merece pasar a un test real.
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="grid">
+
+      <section class="card">
+        <h2>🔎 Investigar producto</h2>
+
+        <div class="sub">
+          La V3 automatiza la evaluación de demanda, competencia, potencial visual,
+          diferenciación, impulso y economía. Los resultados de mercado son
+          estimaciones analíticas y deben validarse con un test real.
+        </div>
+
+        <label for="product">Nombre del producto *</label>
+        <input id="product" type="text" placeholder="Ej. Rodillera térmica" autocomplete="off">
+
+        <label for="description">Descripción o características</label>
+        <textarea id="description" placeholder="Ej. Rodillera de neopreno, calor ajustable, velcro, USB..."></textarea>
+
+        <label for="url">URL del proveedor o página del producto</label>
+        <input id="url" type="url" placeholder="https://...">
+
+        <div class="two">
+          <div>
+            <label for="cost">Costo producto (COP) *</label>
+            <input id="cost" type="number" min="0" step="1" placeholder="30000">
+          </div>
+
+          <div>
+            <label for="shipping">Envío asumido (COP)</label>
+            <input id="shipping" type="number" min="0" step="1" placeholder="12000" value="0">
+          </div>
+        </div>
+
+        <div class="two">
+          <div>
+            <label for="other">Otros costos por venta (COP)</label>
+            <input id="other" type="number" min="0" step="1" placeholder="4000" value="0">
+          </div>
+
+          <div>
+            <label for="price">Precio de venta (COP) *</label>
+            <input id="price" type="number" min="0" step="1" placeholder="79900">
+          </div>
+        </div>
+
+        <label for="returns">Devoluciones / no recibidos estimados (%)</label>
+        <input id="returns" type="number" min="0" max="100" step="0.1" value="5">
+
+        <div class="actions">
+          <button class="btn primary" id="research">🔍 INVESTIGAR PRODUCTO</button>
+          <button class="btn ghost" id="demo" type="button">Demo</button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="help">
+          <strong>Importante:</strong> el costo y el precio son obligatorios porque
+          la aplicación calcula margen, CPA máximo y CPA objetivo a partir de ellos.
+        </div>
+      </section>
+
+      <section class="card">
+        <div id="empty" class="empty">
+          <div>
+            <div style="font-size:48px">🧠</div>
+            <h2>Listo para investigar</h2>
+            <p>
+              Introduce un producto y sus números básicos.<br>
+              La IA hará la parte pesada.
+            </p>
+          </div>
+        </div>
+
+        <div id="report" class="report"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const money = (value) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "—";
+
+      return new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        maximumFractionDigits: 0
+      }).format(n);
+    };
+
+    const number = (value, fallback = 0) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    };
+
+    const esc = (value) => {
+      return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char]));
+    };
+
+    const list = (items) => {
+      if (!Array.isArray(items) || items.length === 0) {
+        return "<li>No se encontraron elementos destacados.</li>";
+      }
+
+      return items.map((item) => `<li>${esc(item)}</li>`).join("");
+    };
+
+    function normalizeResponse(data) {
+      /*
+        El backend V3 devuelve campos planos.
+        Esta función también acepta la estructura anterior para que la
+        aplicación sea resistente a cambios.
+      */
+
+      const economics = data.economics || {};
+      const dimensions = data.dimensions || {};
+
+      return {
+        productName:
+          data.productName ||
+          data.product ||
+          data.name ||
+          "",
+
+        score: number(data.score, 0),
+
+        confidence: number(data.confidence, 0),
+
+        decision:
+          data.decision ||
+          "RESULTADO",
+
+        platform:
+          data.recommendedPlatform ||
+          data.platform ||
+          "Por definir",
+
+        summary:
+          data.summary ||
+          "No se recibió una conclusión del análisis.",
+
+        margin:
+          data.margin != null
+            ? number(data.margin)
+            : number(
+                number(data.salePrice) -
+                number(data.cost) -
+                number(data.shipping) -
+                number(data.otherCosts)
+              ),
+
+        marginPercent:
+          data.marginPercent != null
+            ? number(data.marginPercent)
+            : number(economics.marginPct, 0),
+
+        maxCPA:
+          data.maxCPA != null
+            ? number(data.maxCPA)
+            : number(economics.maxCpa, 0),
+
+        targetCPA:
+          data.targetCPA != null
+            ? number(data.targetCPA)
+            : number(economics.targetCpa, 0),
+
+        breakEvenROAS:
+          data.breakEvenROAS != null
+            ? number(data.breakEvenROAS)
+            : number(economics.breakEvenRoaS, 0),
+
+        dimensions: {
+          demand:
+            data.demand != null
+              ? number(data.demand)
+              : number(dimensions.demand, 0),
+
+          competition:
+            data.competition != null
+              ? number(data.competition)
+              : number(dimensions.competition, 0),
+
+          visual:
+            data.visual != null
+              ? number(data.visual)
+              : number(dimensions.visual, 0),
+
+          differentiation:
+            data.differentiation != null
+              ? number(data.differentiation)
+              : number(dimensions.differentiation, 0),
+
+          impulse:
+            data.impulse != null
+              ? number(data.impulse)
+              : number(dimensions.impulse, 0)
+        },
+
+        strengths:
+          Array.isArray(data.strengths)
+            ? data.strengths
+            : Array.isArray(data.evidence)
+              ? data.evidence
+              : [],
+
+        weaknesses:
+          Array.isArray(data.weaknesses)
+            ? data.weaknesses
+            : [],
+
+        risks:
+          Array.isArray(data.risks)
+            ? data.risks
+            : [],
+
+        angles:
+          Array.isArray(data.angles)
+            ? data.angles
+            : [],
+
+        testPlan:
+          Array.isArray(data.testPlan)
+            ? data.testPlan
+            : Array.isArray(data.test)
+              ? data.test
+              : [],
+
+        researchNotes:
+          Array.isArray(data.researchNotes)
+            ? data.researchNotes
+            : [],
+
+        sources:
+          Array.isArray(data.sources)
+            ? data.sources
+            : []
+      };
+    }
+
+    function render(data) {
+      const d = normalizeResponse(data);
+
+      const score = Math.max(0, Math.min(100, d.score));
+
+      $("empty").style.display = "none";
+      $("report").classList.add("show");
+
+      const sourceHtml = d.sources
+        .filter(source => source && (source.url || source.title))
+        .map(source => {
+          const url = String(source.url || "#");
+
+          return `
+            <a
+              class="source"
+              target="_blank"
+              rel="noopener noreferrer"
+              href="${esc(url)}"
+            >
+              ${esc(source.title || url)}
+            </a>
+          `;
+        })
+        .join("");
+
+      $("report").innerHTML = `
+        <div class="score" style="--score:${score}%">
+          <div class="ring">
+            <span class="scoreNum">${score}</span>
+          </div>
+
+          <div>
+            <div class="decision">${esc(d.decision)}</div>
+
+            <div style="font-weight:800;margin-top:6px">
+              ${esc(d.productName)}
+            </div>
+
+            <div class="confidence">
+              Confianza del análisis:
+              <b>${d.confidence}%</b>
+            </div>
+
+            <div class="chips">
+              <span class="chip">📱 ${esc(d.platform)}</span>
+              <span class="chip">🧠 IA</span>
+              <span class="chip">📊 Análisis automático</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div class="metric">
+            <span>Margen</span>
+            <b>${d.marginPercent.toFixed(1)}%</b>
+          </div>
+
+          <div class="metric">
+            <span>CPA máximo</span>
+            <b>${money(d.maxCPA)}</b>
+          </div>
+
+          <div class="metric">
+            <span>CPA objetivo</span>
+            <b>${money(d.targetCPA)}</b>
+          </div>
+
+          <div class="metric">
+            <span>ROAS equilibrio</span>
+            <b>${d.breakEvenROAS ? d.breakEvenROAS.toFixed(2) + "x" : "—"}</b>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>📊 Evaluación automática</h3>
+
+          <div class="metrics">
+            <div class="metric">
+              <span>Demanda</span>
+              <b>${d.dimensions.demand}/5</b>
+            </div>
+
+            <div class="metric">
+              <span>Competencia</span>
+              <b>${d.dimensions.competition}/5</b>
+            </div>
+
+            <div class="metric">
+              <span>Potencial visual</span>
+              <b>${d.dimensions.visual}/5</b>
+            </div>
+
+            <div class="metric">
+              <span>Diferenciación</span>
+              <b>${d.dimensions.differentiation}/5</b>
+            </div>
+
+            <div class="metric">
+              <span>Impulso</span>
+              <b>${d.dimensions.impulse}/5</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>🧠 Conclusión</h3>
+          <p style="font-size:14px;line-height:1.6">
+            ${esc(d.summary)}
+          </p>
+        </div>
+
+        <div class="section cols">
+          <div>
+            <h3>💪 Fortalezas</h3>
+            <ul class="list">
+              ${list(d.strengths)}
+            </ul>
+          </div>
+
+          <div>
+            <h3>⚠️ Debilidades</h3>
+            <ul class="list">
+              ${list(d.weaknesses)}
+            </ul>
+          </div>
+        </div>
+
+        <div class="section cols">
+          <div>
+            <h3>🎯 Ángulos recomendados</h3>
+            <ol class="list">
+              ${list(d.angles)}
+            </ol>
+          </div>
+
+          <div>
+            <h3>🧪 Plan inicial de test</h3>
+            <ol class="list">
+              ${list(d.testPlan)}
+            </ol>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>🚨 Riesgos principales</h3>
+
+          <div class="risk">
+            ${
+              d.risks.length
+                ? d.risks.map(item => esc(item)).join(" · ")
+                : "No se recibieron riesgos destacados."
+            }
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>🔎 Notas de investigación</h3>
+
+          <ul class="list">
+            ${list(d.researchNotes)}
+          </ul>
+        </div>
+
+        <div class="section">
+          <h3>🌐 Fuentes consultadas</h3>
+
+          ${
+            sourceHtml ||
+            `<p class="note">
+              Esta V3.0 puede realizar el análisis de IA, pero esta ejecución
+              no devolvió enlaces externos. La incorporación de investigación
+              web verificable será una mejora posterior.
+            </p>`
+          }
+        </div>
+
+        <p class="note">
+          Los scores de mercado son estimaciones analíticas, no mediciones
+          absolutas de ventas. Valida siempre con un test real.
+        </p>
+      `;
+    }
+
+    function demoData() {
+      return {
+        productName: "Rodillera térmica",
+        score: 84,
+        confidence: 82,
+        decision: "VALE LA PENA TESTEAR",
+        recommendedPlatform: "Meta Ads",
+        marginPercent: 42.4,
+        maxCPA: 33900,
+        targetCPA: 18900,
+        breakEvenROAS: 2.36,
+        demand: 4,
+        competition: 4,
+        visual: 5,
+        differentiation: 4,
+        impulse: 4,
+        summary:
+          "Producto con una demostración visual clara y una economía que permite plantear un test publicitario. La principal dificultad será diferenciarlo de ofertas similares.",
+        strengths: [
+          "Fácil de demostrar en video.",
+          "Problema y solución pueden explicarse rápidamente.",
+          "Puede trabajarse con contenido UGC."
+        ],
+        weaknesses: [
+          "Existe competencia en productos similares.",
+          "La propuesta no debe depender únicamente del precio."
+        ],
+        risks: [
+          "El CPA real debe validarse con datos de campaña.",
+          "La tasa de no recibido puede afectar la rentabilidad."
+        ],
+        angles: [
+          "Demostración problema → colocación → funcionamiento.",
+          "Uso cotidiano y comodidad.",
+          "Oferta y diferenciación frente a productos genéricos."
+        ],
+        testPlan: [
+          "Crear 3 ángulos de comunicación.",
+          "Producir 2 creativos por ángulo.",
+          "Medir CTR, CPC, ATC, compras y CPA.",
+          "Escalar solamente después de validar rentabilidad."
+        ],
+        researchNotes: [
+          "Demo local de la interfaz.",
+          "Los valores anteriores son ilustrativos."
+        ],
+        sources: []
+      };
+    }
+
+    function setStatus(message, isError = false) {
+      $("status").classList.add("show");
+      $("status").classList.toggle("error", isError);
+      $("status").textContent = message;
+    }
+
+    function clearInvalid() {
+      ["product", "cost", "price"].forEach(id => {
+        $(id).classList.remove("invalid");
+      });
+    }
+
+    $("demo").addEventListener("click", () => {
+      clearInvalid();
+      render(demoData());
+      setStatus("✅ Demo cargada. Esta información es ilustrativa.");
+    });
+
+    $("research").addEventListener("click", async () => {
+      clearInvalid();
+
+      const productName = $("product").value.trim();
+      const description = $("description").value.trim();
+      const url = $("url").value.trim();
+
+      const costRaw = $("cost").value.trim();
+      const shippingRaw = $("shipping").value.trim();
+      const otherRaw = $("other").value.trim();
+      const priceRaw = $("price").value.trim();
+      const returnsRaw = $("returns").value.trim();
+
+      const cost = Number(costRaw);
+      const shipping = Number(shippingRaw || 0);
+      const otherCosts = Number(otherRaw || 0);
+      const salePrice = Number(priceRaw);
+      const returns = Number(returnsRaw || 0);
+
+      if (!productName) {
+        $("product").classList.add("invalid");
+        $("product").focus();
+        setStatus("❌ Escribe el nombre del producto.", true);
+        return;
+      }
+
+      if (
+        costRaw === "" ||
+        !Number.isFinite(cost) ||
+        cost <= 0
+      ) {
+        $("cost").classList.add("invalid");
+        $("cost").focus();
+        setStatus("❌ Introduce un costo de producto válido.", true);
+        return;
+      }
+
+      if (
+        priceRaw === "" ||
+        !Number.isFinite(salePrice) ||
+        salePrice <= 0
+      ) {
+        $("price").classList.add("invalid");
+        $("price").focus();
+        setStatus("❌ Introduce un precio de venta válido.", true);
+        return;
+      }
+
+      if (
+        !Number.isFinite(shipping) ||
+        shipping < 0 ||
+        !Number.isFinite(otherCosts) ||
+        otherCosts < 0 ||
+        !Number.isFinite(returns) ||
+        returns < 0 ||
+        returns > 100
+      ) {
+        setStatus("❌ Revisa los valores económicos introducidos.", true);
+        return;
+      }
+
+      if (salePrice <= cost + shipping + otherCosts) {
+        setStatus(
+          "⚠️ El precio de venta no cubre costo, envío y otros costos. Puedes continuar, pero el producto parte con margen negativo.",
+          false
+        );
+      } else {
+        setStatus(
+          "🔎 Investigando producto, mercado, competencia y economía..."
+        );
+      }
+
+      const payload = {
+        productName,
+        description,
+        url,
+        cost,
+        shipping,
+        otherCosts,
+        salePrice,
+        returns
+      };
+
+      $("research").disabled = true;
+      $("demo").disabled = true;
+
+      try {
+        const response = await fetch("/api/research", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const contentType =
+          response.headers.get("content-type") || "";
+
+        const raw = await response.text();
+
+        let data;
+
+        try {
+          data = JSON.parse(raw);
+        } catch (jsonError) {
+          console.error("Respuesta no JSON:", raw);
+
+          throw new Error(
+            `El servidor no devolvió JSON válido (HTTP ${response.status}).`
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+            `El servidor respondió con HTTP ${response.status}.`
+          );
+        }
+
+        render(data);
+
+        setStatus("✅ Investigación terminada correctamente.");
+
+      } catch (error) {
+        console.error(error);
+
+        setStatus(
+          "❌ " + (error.message || "No se pudo completar la investigación."),
+          true
+        );
+      } finally {
+        $("research").disabled = false;
+        $("demo").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+'''
+
+path = Path("/mnt/data/index_V3_0_corregido.html")
+path.write_text(html, encoding="utf-8")
+
+print(f"Archivo creado: {path}")
+print(f"Tamaño: {path.stat().st_size:,} bytes")
