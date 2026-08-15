@@ -1,20 +1,11 @@
-# Detector de Producto Ganador
+# Detector de Producto Ganador — V3.0 AI
 
-Microaplicación web en un solo archivo para evaluar productos de ecommerce.
+La V3 automatiza la investigación inicial: el usuario introduce producto y economía básica; la función serverless consulta la API de OpenAI con búsqueda web y devuelve score, demanda, competencia, potencial visual, diferenciación, impulso, plataforma, riesgos, ángulos y plan inicial de test.
 
-## Uso
-1. Abre `index.html` en Chrome/Edge.
-2. Introduce costo, precio, envío, CPA y variables comerciales.
-3. Pulsa "Analizar producto".
+## Vercel
+Configura `OPENAI_API_KEY` como variable de entorno. Opcional: `OPENAI_MODEL` (por defecto `gpt-5`). No pongas la API key en el frontend.
 
-## Qué calcula
-- Margen antes de publicidad.
-- CPA máximo.
-- ROAS de equilibrio.
-- Utilidad estimada con CPA.
-- Ajuste por devoluciones/no recibidos.
-- Score de 0 a 100.
-- Recomendaciones de validación.
+Después de agregar/modificar variables de entorno debes redeployar.
 
-## Publicar en Vercel
-Puedes subir esta carpeta como proyecto estático. Si prefieres, puedo convertir esta V1 en una aplicación más completa con base de datos, historial de productos, comparación de productos, usuarios y análisis con IA.
+## Próximas versiones
+V3.1: análisis por lotes. V3.2: plan y generación de creativos. V4: importar resultados reales de Meta/TikTok y aprender de los tests.
