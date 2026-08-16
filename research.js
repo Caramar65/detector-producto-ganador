@@ -1,4 +1,5 @@
 export default async function handler(req,res){
+res.setHeader("Content-Type","application/json; charset=utf-8");
 if(req.method!=="POST")return res.status(405).json({error:"Usa POST."});
 try{
 const key=process.env.OPENAI_API_KEY;if(!key)return res.status(500).json({error:"OPENAI_API_KEY no está configurada en Vercel."});
@@ -28,8 +29,12 @@ El overallWinner debe ser el mayor overallScore; metaWinner el mayor metaScore; 
 DATOS:
 ${info}`;
 
-const response=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify({
-model:process.env.OPENAI_MODEL||"gpt-5.6",tools:[{type:"web_search"}],input:prompt,text:{format:{type:"json_schema",name:"product_comparison",strict:true,schema}}
+const controller=new AbortController();
+const timeout=setTimeout(()=>controller.abort(),55000);
+let response;
+try{
+response=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify({
+model:process.env.OPENAI_MODEL||"gpt-5",tools:[{type:"web_search"}],input:prompt,text:{format:{type:"json_schema",name:"product_comparison",strict:true,schema}}
 })});
 const raw=await response.text();if(!response.ok){let e={};try{e=JSON.parse(raw)}catch{}return res.status(response.status).json({error:e?.error?.message||"Error de OpenAI."});}
 let apiResult;try{apiResult=JSON.parse(raw)}catch{return res.status(502).json({error:"OpenAI respondió con formato inesperado."})}
