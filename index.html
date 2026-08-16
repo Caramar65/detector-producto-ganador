@@ -26,7 +26,7 @@ li{font-size:13px;margin:6px 0}.muted{color:#667085;font-size:12px;line-height:1
 <header><div class="wrap">
 <span class="badge">MICROAPP · V3.1 AI</span>
 <h1>Detector de Producto Ganador</h1>
-<p>Introduce 5 productos. La IA los investiga, compara, clasifica y recomienda cuál probar primero y en qué plataforma.</p>
+<p>Evalúa desde 1 hasta 5 productos. La IA los investiga, compara, clasifica y recomienda cuál probar primero y en qué plataforma.</p>
 </div></header>
 <main class="wrap">
 <h2>🔎 Tus 5 productos</h2>
@@ -47,8 +47,8 @@ const list=a=>Array.isArray(a)&&a.length?a.map(x=>"<li>"+esc(x)+"</li>").join(""
 
 for(let i=1;i<=5;i++)$("products").insertAdjacentHTML("beforeend",`
 <article class="card">
-<h3>Producto ${i}</h3>
-<label>Nombre *</label><input id="n${i}" placeholder="Ej. Rodillera térmica">
+<h3>Producto ${i}${i>1?" (opcional)":""}</h3>
+<label>Nombre ${i===1?"*":""}</label><input id="n${i}" placeholder="Ej. Rodillera térmica">
 <label>Descripción</label><textarea id="d${i}" placeholder="Características y beneficio principal"></textarea>
 <label>URL</label><input id="u${i}" placeholder="https://...">
 <div class="two">
@@ -66,12 +66,16 @@ function status(t,e=false){$("status").className="status show"+(e?" error":"");$
 function read(){
 let a=[];
 for(let i=1;i<=5;i++){
-let name=$("n"+i).value.trim(),cost=Number($("c"+i).value),price=Number($("p"+i).value);
-if(!name)throw Error("Falta el nombre del producto "+i+".");
+const name=$("n"+i).value.trim();
+const hasAny=name||$("d"+i).value.trim()||$("u"+i).value.trim()||$("c"+i).value.trim()||$("p"+i).value.trim();
+if(!hasAny) continue;
+const cost=Number($("c"+i).value),price=Number($("p"+i).value);
+if(!name)throw Error("El producto "+i+" tiene información, pero falta el nombre.");
 if(!cost||cost<=0)throw Error("Falta un costo válido en el producto "+i+".");
 if(!price||price<=0)throw Error("Falta un precio válido en el producto "+i+".");
 a.push({id:i,productName:name,description:$("d"+i).value.trim(),url:$("u"+i).value.trim(),cost,shipping:Number($("s"+i).value||0),otherCosts:Number($("o"+i).value||0),salePrice:price,returns:Number($("r"+i).value||0)});
 }
+if(a.length===0)throw Error("Introduce al menos 1 producto para comenzar el análisis.");
 return a;
 }
 function render(x){
@@ -99,7 +103,7 @@ status("✅ Demo cargada. Los resultados reales aparecerán al analizar.");
 $("demo").onclick=demo;
 $("analyze").onclick=async()=>{
 try{
-let products=read();status("🔎 Investigando y comparando los 5 productos...");
+let products=read();status("🔎 Investigando y comparando "+products.length+" producto"+(products.length===1?"":"s")+"...");
 $("analyze").disabled=true;$("demo").disabled=true;
 let r=await fetch("/api/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({products})});
 let raw=await r.text(),data;try{data=JSON.parse(raw)}catch{throw Error("El servidor no devolvió JSON válido.")}
