@@ -16,7 +16,12 @@ module.exports = async function handler(req, res) {
 
     const body = req.body || {};
 
-    const productName = String(body.productName || "").trim();
+    const productName = String(
+  body.productName ||
+  body.product ||
+  body.name ||
+  ""
+).trim();
     const description = String(body.description || "").trim();
     const url = String(body.url || "").trim();
 
