@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Detector de Producto Ganador V3.2</title>
+<style>
+body{margin:0;background:#f4f6fb;color:#172033;font-family:Arial,sans-serif}
+header{background:linear-gradient(115deg,#24265d,#4b27c8,#7c2ee8);color:#fff;padding:30px 20px}
+.wrap{max-width:1200px;margin:auto}main{padding:20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:#fff;border:1px solid #e5e7ef;border-radius:16px;padding:18px;box-shadow:0 6px 22px #0000000d}
+h1{margin:10px 0;font-size:42px}.badge{font-size:12px;font-weight:bold;background:#ffffff22;padding:7px 11px;border-radius:20px}
+label{display:block;font-size:12px;font-weight:bold;margin:10px 0 5px}
+input,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d7dbe5;border-radius:9px;font-size:13px}
+textarea{min-height:60px}.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{border:0;border-radius:10px;padding:13px 18px;font-weight:bold;cursor:pointer}.primary{background:#5b45ea;color:#fff}.ghost{background:#eeeaff;color:#4937c4}.actions{display:flex;gap:10px;margin:18px 0}
+.status{display:none;padding:12px;border-radius:10px;background:#f0edff;margin:10px 0}.show{display:block}.error{background:#fff0ef;color:#b42318}
+#report{display:none}.winner{background:#faf9ff;border:1px solid #ddd9ff;padding:20px;border-radius:15px}.big{font-size:40px;font-weight:900;color:#4b36c8}
+table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:9px;border-bottom:1px solid #e6e8ef;text-align:left;font-size:12px}th{color:#667085}.table{overflow:auto}
+.twoReport{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}li{font-size:13px;margin:6px 0}.muted{color:#667085;font-size:12px;line-height:1.5}
+@media(max-width:850px){.grid,.twoReport{grid-template-columns:1fr}h1{font-size:32px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<span class="badge">MICROAPP · V3.2 AI</span>
+<h1>Detector de Producto Ganador</h1>
+<p>Evalúa desde 1 hasta 5 productos. La IA los investiga, compara, clasifica y recomienda cuál probar primero y en qué plataforma.</p>
+</div></header>
+<main class="wrap">
+<h2>🔎 Tus productos</h2>
+<p class="muted">Puedes evaluar 1, 2, 3, 4 o 5 productos. Los campos completamente vacíos no se analizan.</p>
+<div id="products" class="grid"></div>
+<div id="status" class="status"></div>
+<div class="actions"><button id="analyze" class="primary">🚀 ANALIZAR PRODUCTOS</button><button id="demo" class="ghost">Demo 5</button></div>
+<section class="card"><div id="empty"><h2>🏆 Esperando análisis</h2><p class="muted">Aquí aparecerán el ranking, ganador general, ganador Meta Ads, ganador TikTok Ads y plan de test.</p></div><div id="report"></div></section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=(v,d=0)=>Number.isFinite(Number(v))?Number(v):d;
+const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(num(n));
+const list=a=>Array.isArray(a)&&a.length?a.map(x=>"<li>"+esc(x)+"</li>").join(""):"<li>No disponible.</li>";
+
+for(let i=1;i<=5;i++)$("products").insertAdjacentHTML("beforeend",`
+<article class="card"><h3>Producto ${i}${i>1?" (opcional)":""}</h3>
+<label>Nombre ${i===1?"*":""}</label><input id="n${i}" placeholder="Ej. Rodillera térmica">
+<label>Descripción</label><textarea id="d${i}" placeholder="Características y beneficio principal"></textarea>
+<label>URL</label><input id="u${i}" placeholder="https://...">
+<div class="two"><div><label>Costo COP *</label><input id="c${i}" type="number" min="0" placeholder="30000"></div><div><label>Envío COP</label><input id="s${i}" type="number" min="0" value="0"></div></div>
+<div class="two"><div><label>Otros costos COP</label><input id="o${i}" type="number" min="0" value="0"></div><div><label>Precio venta COP *</label><input id="p${i}" type="number" min="0" placeholder="79900"></div></div>
+<label>Devoluciones/no recibidos %</label><input id="r${i}" type="number" value="5" min="0" max="100"></article>`);
+
+function status(t,e=false){$("status").className="status show"+(e?" error":"");$("status").textContent=t}
+
+function read(){
+ const a=[];
+ for(let i=1;i<=5;i++){
+  const name=$("n"+i).value.trim(),desc=$("d"+i).value.trim(),url=$("u"+i).value.trim(),cr=$("c"+i).value.trim(),pr=$("p"+i).value.trim();
+  if(!(name||desc||url||cr||pr))continue;
+  const cost=Number(cr),price=Number(pr),shipping=Number($("s"+i).value||0),otherCosts=Number($("o"+i).value||0),returns=Number($("r"+i).value||0);
+  if(!name)throw Error("El producto "+i+" tiene información, pero falta el nombre.");
+  if(!Number.isFinite(cost)||cost<=0)throw Error("Falta un costo válido en el producto "+i+".");
+  if(!Number.isFinite(price)||price<=0)throw Error("Falta un precio válido en el producto "+i+".");
+  if(shipping<0||otherCosts<0||returns<0||returns>100)throw Error("Revisa los costos/devoluciones del producto "+i+".");
+  a.push({id:i,productName:name,description:desc,url,cost,shipping,otherCosts,salePrice:price,returns});
+ }
+ if(!a.length)throw Error("Introduce al menos 1 producto para comenzar el análisis.");
+ return a;
+}
+
+/* Normalización: evita que la interfaz muestre undefined si el backend
+   entrega score/competition/economics en lugar de los nombres exactos. */
+function normalize(p,orig){
+ p=p||{};orig=orig||{};const e=p.economics||{},d=p.dimensions||{};
+ const demand=num(p.demand??d.demand),competition=num(p.competitionOpportunity??p.competition??d.competition),
+ visual=num(p.visual??p.visualPotential??d.visual),diff=num(p.differentiation??d.differentiation),impulse=num(p.impulse??d.impulse);
+ const cost=num(p.cost??orig.cost),ship=num(p.shipping??orig.shipping),other=num(p.otherCosts??orig.otherCosts),price=num(p.salePrice??orig.salePrice),ret=num(p.returns??orig.returns);
+ const margin=num(p.margin??e.margin,price-cost-ship-other),mp=num(p.marginPercent??e.marginPct,price?margin/price*100:0);
+ const max=num(p.maxCPA??e.maxCpa,Math.max(0,margin*(1-ret/100))),target=num(p.targetCPA??e.targetCpa,Math.max(0,max*.55));
+ const roas=num(p.breakEvenROAS??e.breakEvenROAS??e.breakEvenRoaS,margin>0?price/margin:0);
+ let eco=num(p.economicScore??p.economyScore??e.score,NaN);
+ if(!Number.isFinite(eco))eco=Math.max(0,Math.min(100,mp*1.25));
+ let score=num(p.overallScore??p.score??p.totalScore,NaN);
+ if(!Number.isFinite(score)){let ds=[demand,competition,visual,diff,impulse].filter(x=>x>0);let market=ds.length?ds.reduce((a,b)=>a+b,0)/ds.length*20:0;score=Math.round(market*.7+eco*.3)}
+ let meta=num(p.metaScore??p.meta??p.platformScores?.meta,NaN);
+ if(!Number.isFinite(meta))meta=Math.round(visual*8+ demand*5+diff*4+impulse*3);
+ let tik=num(p.tiktokScore??p.tiktok??p.platformScores?.tiktok,NaN);
+ if(!Number.isFinite(tik))tik=Math.round(visual*8+impulse*6+diff*4+demand*2);
+ score=Math.round(Math.max(0,Math.min(100,score)));
+ const verdict=p.verdict||p.decision||(score>=80?"PRODUCTO PRIORITARIO":score>=70?"VALE LA PENA TESTEAR":score>=60?"TEST CON PRECAUCIÓN":score>=50?"PRODUCTO DÉBIL":"NO PRIORITARIO");
+ return {...p,id:p.id??orig.id,productName:p.productName||p.product||p.name||orig.productName||"",overallScore:score,demand,competitionOpportunity:competition,visual,differentiation:diff,impulse,economicScore:Math.round(eco),metaScore:Math.round(meta),tiktokScore:Math.round(tik),margin,marginPercent:mp,maxCPA:max,targetCPA:target,breakEvenROAS:roas,verdict,priority:p.priority||verdict,recommendedPlatform:p.recommendedPlatform||p.platform||"Por definir",finalReason:p.finalReason||p.summary||"",platformReason:p.platformReason||"",strengths:p.strengths||[],weaknesses:p.weaknesses||[],risks:p.risks||[],angles:p.angles||[],testPlan:p.testPlan||[]};
+}
+
+function pick(ref,ps,fallback){
+ if(!ref)return fallback||ps[0];
+ return ps.find(p=>(ref.id!=null&&String(p.id)===String(ref.id))||((ref.productName||ref.product||ref.name)&&p.productName===(ref.productName||ref.product||ref.name)))||fallback||ps[0];
+}
+
+function render(x,submitted){
+ let raw=Array.isArray(x.products)?x.products:[],ps=raw.map((p,i)=>normalize(p,submitted[i]||{}));
+ submitted.forEach(o=>{if(!ps.some(p=>p.productName===o.productName))ps.push(normalize({},o))});
+ ps.sort((a,b)=>b.overallScore-a.overallScore);
+ const w=pick(x.overallWinner,ps,ps[0]),m=pick(x.metaWinner,ps,ps.slice().sort((a,b)=>b.metaScore-a.metaScore)[0]),t=pick(x.tiktokWinner,ps,ps.slice().sort((a,b)=>b.tiktokScore-a.tiktokScore)[0]);
+ $("empty").style.display="none";$("report").style.display="block";
+ $("report").innerHTML=`
+ <div class="winner"><h2>🏆 GANADOR GENERAL</h2><h2>${esc(w.productName)}</h2><div class="big">${w.overallScore}/100</div><p><b>${esc(w.priority)}</b> · Plataforma recomendada: <b>${esc(w.recommendedPlatform)}</b></p><p>${esc(w.finalReason||"Resultado del análisis comparativo.")}</p></div>
+ <div class="twoReport"><div class="card"><h3>🔵 Mejor Meta Ads</h3><b>${esc(m.productName)}</b><p><b>${m.metaScore}/100</b></p><p>${esc(m.platformReason||"Mayor potencial relativo para Meta Ads.")}</p></div><div class="card"><h3>🎵 Mejor TikTok Ads</h3><b>${esc(t.productName)}</b><p><b>${t.tiktokScore}/100</b></p><p>${esc(t.platformReason||"Mayor potencial relativo para TikTok Ads.")}</p></div></div>
+ <div style="margin-top:18px"><h2>📊 Ranking</h2><div class="table"><table><tr><th>#</th><th>Producto</th><th>Score</th><th>Demanda</th><th>Competencia*</th><th>Visual</th><th>Dif.</th><th>Impulso</th><th>Economía</th><th>Meta</th><th>TikTok</th><th>Veredicto</th></tr>${ps.map((p,i)=>`<tr><td>${i+1}</td><td><b>${esc(p.productName)}</b></td><td><b>${p.overallScore}</b></td><td>${p.demand}/5</td><td>${p.competitionOpportunity}/5</td><td>${p.visual}/5</td><td>${p.differentiation}/5</td><td>${p.impulse}/5</td><td>${p.economicScore}/100</td><td>${p.metaScore}/100</td><td>${p.tiktokScore}/100</td><td>${esc(p.verdict)}</td></tr>`).join("")}</table></div><p class="muted">* Competencia: 5/5 significa oportunidad competitiva favorable.</p></div>
+ <div class="twoReport"><div class="card"><h3>💰 Economía del ganador</h3><p>Margen: <b>${money(w.margin)}</b> (${w.marginPercent.toFixed(1)}%)</p><p>CPA máximo: <b>${money(w.maxCPA)}</b></p><p>CPA objetivo: <b>${money(w.targetCPA)}</b></p><p>ROAS equilibrio: <b>${w.breakEvenROAS?w.breakEvenROAS.toFixed(2)+"x":"—"}</b></p></div><div class="card"><h3>🎯 Recomendación</h3><p>${esc(x.recommendation||"Prioriza el ganador general y valida con un test real.")}</p></div></div>
+ <div class="twoReport"><div><h3>💪 Fortalezas</h3><ul>${list(w.strengths)}</ul></div><div><h3>⚠️ Debilidades</h3><ul>${list(w.weaknesses)}</ul></div></div>
+ <div class="twoReport"><div><h3>🎯 Ángulos</h3><ol>${list(w.angles)}</ol></div><div><h3>🧪 Plan de test</h3><ol>${list(w.testPlan)}</ol></div></div>
+ <div><h3>🚨 Riesgos</h3><ul>${list(w.risks)}</ul></div>
+ <div><h3>🔎 Investigación</h3><ul>${list(x.researchNotes)}</ul>${(x.sources||[]).map(s=>`<p><a target="_blank" rel="noopener noreferrer" href="${esc(s.url||"#")}">${esc(s.title||s.url||"Fuente")}</a></p>`).join("")}</div>
+ <p class="muted">Se analizaron <b>${ps.length}</b> producto${ps.length===1?"":"s"}. La aplicación permite evaluar de 1 a 5.</p>`;
+}
+
+function demo(){
+ [["Rodillera térmica",30000,12000,4000,79900],["Ergoback",25000,10000,3000,69900],["Muñequera térmica",22000,10000,3000,59900],["Hombrera térmica",28000,11000,3500,74900],["Corrector de juanetes",15000,9000,2500,49900]].forEach((x,j)=>{$("n"+(j+1)).value=x[0];$("c"+(j+1)).value=x[1];$("s"+(j+1)).value=x[2];$("o"+(j+1)).value=x[3];$("p"+(j+1)).value=x[4]});
+ status("✅ Demo de 5 productos cargada. Puedes borrar productos y analizar solo los que quieras.");
+}
+$("demo").onclick=demo;
+
+$("analyze").onclick=async()=>{
+ try{
+  const products=read();status("🔎 Investigando y comparando "+products.length+" producto"+(products.length===1?"":"s")+"...");
+  $("analyze").disabled=true;$("demo").disabled=true;
+  const r=await fetch("/api/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({products})});
+  const raw=await r.text();let data;
+  try{data=JSON.parse(raw)}catch(err){console.error("Respuesta servidor:",raw);throw Error("El servidor no devolvió JSON válido. Revisa los logs de Vercel.");}
+  if(!r.ok)throw Error(data.error||"Error del servidor.");
+  render(data,products);status("✅ Análisis terminado: "+products.length+" producto"+(products.length===1?"":"s")+" evaluado"+(products.length===1?"":"s")+".");
+ }catch(e){console.error(e);status("❌ "+e.message,true)}
+ finally{$("analyze").disabled=false;$("demo").disabled=false}
+};
+</script>
+</body>
+</html>
