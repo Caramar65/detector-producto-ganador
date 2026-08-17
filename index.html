@@ -1,116 +1,1820 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Detector de Producto Ganador V3.1</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Detector de Producto Ganador V3.2</title>
+
 <style>
-body{margin:0;background:#f4f6fb;color:#172033;font-family:Arial,sans-serif}
-header{background:linear-gradient(115deg,#24265d,#4b27c8,#7c2ee8);color:white;padding:30px 20px}
-.wrap{max-width:1200px;margin:auto}main{padding:20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.card{background:white;border:1px solid #e5e7ef;border-radius:16px;padding:18px;box-shadow:0 6px 22px #0000000d}
-h1{margin:10px 0;font-size:42px}h2{margin-top:0}.badge{font-size:12px;font-weight:bold;background:#ffffff22;padding:7px 11px;border-radius:20px}
-label{display:block;font-size:12px;font-weight:bold;margin:10px 0 5px}
-input,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d7dbe5;border-radius:9px;font-size:13px}
-textarea{min-height:60px}.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-button{border:0;border-radius:10px;padding:13px 18px;font-weight:bold;cursor:pointer}
-.primary{background:#5b45ea;color:white}.ghost{background:#eeeaff;color:#4937c4}.actions{display:flex;gap:10px;margin:18px 0}
-.status{display:none;padding:12px;border-radius:10px;background:#f0edff;margin:10px 0}.show{display:block}.error{background:#fff0ef;color:#b42318}
-#report{display:none}.winner{background:#faf9ff;border:1px solid #ddd9ff;padding:20px;border-radius:15px}.big{font-size:40px;font-weight:900;color:#4b36c8}
-table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:9px;border-bottom:1px solid #e6e8ef;text-align:left;font-size:12px}th{color:#667085}
-.table{overflow:auto}.twoReport{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
-li{font-size:13px;margin:6px 0}.muted{color:#667085;font-size:12px;line-height:1.5}
-@media(max-width:850px){.grid,.twoReport{grid-template-columns:1fr}h1{font-size:32px}}
+body{
+  margin:0;
+  background:#f4f6fb;
+  color:#172033;
+  font-family:Arial,sans-serif;
+}
+
+header{
+  background:linear-gradient(115deg,#24265d,#4b27c8,#7c2ee8);
+  color:white;
+  padding:30px 20px;
+}
+
+.wrap{
+  max-width:1200px;
+  margin:auto;
+}
+
+main{
+  padding:20px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+
+.card{
+  background:white;
+  border:1px solid #e5e7ef;
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 6px 22px #0000000d;
+}
+
+h1{
+  margin:10px 0;
+  font-size:42px;
+}
+
+h2{
+  margin-top:0;
+}
+
+h3{
+  margin-top:0;
+}
+
+.badge{
+  font-size:12px;
+  font-weight:bold;
+  background:#ffffff22;
+  padding:7px 11px;
+  border-radius:20px;
+}
+
+label{
+  display:block;
+  font-size:12px;
+  font-weight:bold;
+  margin:10px 0 5px;
+}
+
+input,
+textarea{
+  width:100%;
+  box-sizing:border-box;
+  padding:10px;
+  border:1px solid #d7dbe5;
+  border-radius:9px;
+  font-size:13px;
+}
+
+textarea{
+  min-height:60px;
+  resize:vertical;
+}
+
+.two{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+button{
+  border:0;
+  border-radius:10px;
+  padding:13px 18px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.primary{
+  background:#5b45ea;
+  color:white;
+}
+
+.ghost{
+  background:#eeeaff;
+  color:#4937c4;
+}
+
+.actions{
+  display:flex;
+  gap:10px;
+  margin:18px 0;
+  flex-wrap:wrap;
+}
+
+.status{
+  display:none;
+  padding:12px;
+  border-radius:10px;
+  background:#f0edff;
+  margin:10px 0;
+}
+
+.show{
+  display:block;
+}
+
+.error{
+  background:#fff0ef;
+  color:#b42318;
+}
+
+#report{
+  display:none;
+}
+
+.winner{
+  background:#faf9ff;
+  border:1px solid #ddd9ff;
+  padding:20px;
+  border-radius:15px;
+}
+
+.big{
+  font-size:40px;
+  font-weight:900;
+  color:#4b36c8;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:900px;
+}
+
+th,
+td{
+  padding:9px;
+  border-bottom:1px solid #e6e8ef;
+  text-align:left;
+  font-size:12px;
+}
+
+th{
+  color:#667085;
+}
+
+.table{
+  overflow:auto;
+}
+
+.twoReport{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-top:14px;
+}
+
+li{
+  font-size:13px;
+  margin:6px 0;
+}
+
+.muted{
+  color:#667085;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.scoreGood{
+  font-weight:bold;
+}
+
+.productCount{
+  font-size:13px;
+  color:#667085;
+  margin-bottom:15px;
+}
+
+@media(max-width:850px){
+
+  .grid,
+  .twoReport{
+    grid-template-columns:1fr;
+  }
+
+  h1{
+    font-size:32px;
+  }
+
+  .two{
+    grid-template-columns:1fr;
+  }
+}
 </style>
 </head>
+
 <body>
-<header><div class="wrap">
-<span class="badge">MICROAPP · V3.1 AI</span>
+
+<header>
+<div class="wrap">
+
+<span class="badge">MICROAPP · V3.2 AI</span>
+
 <h1>Detector de Producto Ganador</h1>
-<p>Evalúa desde 1 hasta 5 productos. La IA los investiga, compara, clasifica y recomienda cuál probar primero y en qué plataforma.</p>
-</div></header>
+
+<p>
+Evalúa desde 1 hasta 5 productos. La IA los investiga, compara,
+clasifica y recomienda cuál probar primero y en qué plataforma.
+</p>
+
+</div>
+</header>
+
+
 <main class="wrap">
-<h2>🔎 Tus 5 productos</h2>
-<p class="muted">No debes asignar demanda, competencia, visual o impulso. La IA lo hará automáticamente.</p>
+
+<h2>🔎 Tus productos</h2>
+
+<p class="muted">
+Puedes evaluar desde <b>1 hasta 5 productos</b>.
+Los productos adicionales son opcionales.
+La IA asignará automáticamente demanda, competencia,
+potencial visual, diferenciación e impulso.
+</p>
+
+<div id="productCount" class="productCount">
+0 productos preparados
+</div>
+
 <div id="products" class="grid"></div>
+
+
 <div id="status" class="status"></div>
-<div class="actions"><button id="analyze" class="primary">🚀 ANALIZAR LOS 5 PRODUCTOS</button><button id="demo" class="ghost">Demo</button></div>
+
+
+<div class="actions">
+
+<button id="analyze" class="primary">
+🚀 ANALIZAR PRODUCTOS
+</button>
+
+<button id="demo" class="ghost">
+Demo
+</button>
+
+</div>
+
+
 <section class="card">
-<div id="empty"><h2>🏆 Esperando análisis</h2><p class="muted">Aquí aparecerán el ranking, ganador general, ganador Meta Ads, ganador TikTok Ads y plan de test.</p></div>
+
+<div id="empty">
+
+<h2>🏆 Esperando análisis</h2>
+
+<p class="muted">
+Aquí aparecerán el ranking, ganador general,
+ganador Meta Ads, ganador TikTok Ads,
+economía, fortalezas, debilidades,
+ángulos y plan de test.
+</p>
+
+</div>
+
+
 <div id="report"></div>
+
 </section>
+
 </main>
+
+
 <script>
-const $=id=>document.getElementById(id);
-const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(Number(n)||0);
-const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const list=a=>Array.isArray(a)&&a.length?a.map(x=>"<li>"+esc(x)+"</li>").join(""):"<li>No disponible.</li>";
 
-for(let i=1;i<=5;i++)$("products").insertAdjacentHTML("beforeend",`
-<article class="card">
-<h3>Producto ${i}${i>1?" (opcional)":""}</h3>
-<label>Nombre ${i===1?"*":""}</label><input id="n${i}" placeholder="Ej. Rodillera térmica">
-<label>Descripción</label><textarea id="d${i}" placeholder="Características y beneficio principal"></textarea>
-<label>URL</label><input id="u${i}" placeholder="https://...">
-<div class="two">
-<div><label>Costo COP *</label><input id="c${i}" type="number" placeholder="30000"></div>
-<div><label>Envío COP</label><input id="s${i}" type="number" value="0"></div>
-</div>
-<div class="two">
-<div><label>Otros costos COP</label><input id="o${i}" type="number" value="0"></div>
-<div><label>Precio venta COP *</label><input id="p${i}" type="number" placeholder="79900"></div>
-</div>
-<label>Devoluciones/no recibidos %</label><input id="r${i}" type="number" value="5" min="0" max="100">
-</article>`);
+const $ = id => document.getElementById(id);
 
-function status(t,e=false){$("status").className="status show"+(e?" error":"");$("status").textContent=t}
-function read(){
-let a=[];
-for(let i=1;i<=5;i++){
-const name=$("n"+i).value.trim();
-const hasAny=name||$("d"+i).value.trim()||$("u"+i).value.trim()||$("c"+i).value.trim()||$("p"+i).value.trim();
-if(!hasAny) continue;
-const cost=Number($("c"+i).value),price=Number($("p"+i).value);
-if(!name)throw Error("El producto "+i+" tiene información, pero falta el nombre.");
-if(!cost||cost<=0)throw Error("Falta un costo válido en el producto "+i+".");
-if(!price||price<=0)throw Error("Falta un precio válido en el producto "+i+".");
-a.push({id:i,productName:name,description:$("d"+i).value.trim(),url:$("u"+i).value.trim(),cost,shipping:Number($("s"+i).value||0),otherCosts:Number($("o"+i).value||0),salePrice:price,returns:Number($("r"+i).value||0)});
-}
-if(a.length===0)throw Error("Introduce al menos 1 producto para comenzar el análisis.");
-return a;
-}
-function render(x){
-let ps=(x.products||[]).slice().sort((a,b)=>b.overallScore-a.overallScore),w=x.overallWinner||ps[0],m=x.metaWinner||w,t=x.tiktokWinner||w;
-$("empty").style.display="none";$("report").style.display="block";
-$("report").innerHTML=`
-<div class="winner"><h2>🏆 GANADOR GENERAL</h2><h2>${esc(w.productName)}</h2><div class="big">${w.overallScore}/100</div>
-<p><b>${esc(w.priority)}</b> · Plataforma recomendada: <b>${esc(w.recommendedPlatform)}</b></p><p>${esc(w.finalReason||w.summary)}</p></div>
-<div class="twoReport"><div class="card"><h3>🔵 Mejor Meta Ads</h3><b>${esc(m.productName)}</b><p>${m.metaScore}/100</p><p>${esc(m.platformReason)}</p></div>
-<div class="card"><h3>🎵 Mejor TikTok Ads</h3><b>${esc(t.productName)}</b><p>${t.tiktokScore}/100</p><p>${esc(t.platformReason)}</p></div></div>
-<div style="margin-top:18px"><h2>📊 Ranking</h2><div class="table"><table><tr><th>#</th><th>Producto</th><th>Score</th><th>Demanda</th><th>Competencia*</th><th>Visual</th><th>Dif.</th><th>Impulso</th><th>Economía</th><th>Meta</th><th>TikTok</th><th>Veredicto</th></tr>
-${ps.map((p,i)=>`<tr><td>${i+1}</td><td><b>${esc(p.productName)}</b></td><td><b>${p.overallScore}</b></td><td>${p.demand}/5</td><td>${p.competitionOpportunity}/5</td><td>${p.visual}/5</td><td>${p.differentiation}/5</td><td>${p.impulse}/5</td><td>${p.economicScore}</td><td>${p.metaScore}</td><td>${p.tiktokScore}</td><td>${esc(p.verdict)}</td></tr>`).join("")}</table></div><p class="muted">* Competencia: 5/5 significa oportunidad competitiva favorable, no ausencia de competencia.</p></div>
-<div class="twoReport"><div class="card"><h3>💰 Economía del ganador</h3><p>Margen: <b>${money(w.margin)}</b> (${Number(w.marginPercent).toFixed(1)}%)</p><p>CPA máximo: <b>${money(w.maxCPA)}</b></p><p>CPA objetivo: <b>${money(w.targetCPA)}</b></p><p>ROAS equilibrio: <b>${Number(w.breakEvenROAS).toFixed(2)}x</b></p></div>
-<div class="card"><h3>🎯 Recomendación</h3><p>${esc(x.recommendation)}</p></div></div>
-<div class="twoReport"><div><h3>💪 Fortalezas</h3><ul>${list(w.strengths)}</ul></div><div><h3>⚠️ Debilidades</h3><ul>${list(w.weaknesses)}</ul></div></div>
-<div class="twoReport"><div><h3>🎯 Ángulos</h3><ol>${list(w.angles)}</ol></div><div><h3>🧪 Plan de test</h3><ol>${list(w.testPlan)}</ol></div></div>
-<div><h3>🚨 Riesgos</h3><ul>${list(w.risks)}</ul></div>
-<div><h3>🔎 Investigación</h3><ul>${list(x.researchNotes)}</ul>${(x.sources||[]).map(s=>`<p><a target="_blank" href="${esc(s.url)}">${esc(s.title)}</a></p>`).join("")}</div>`;
-}
-function demo(){
-const d=[["Rodillera térmica",30000,12000,4000,79900],["Ergoback",25000,10000,3000,69900],["Muñequera térmica",22000,10000,3000,59900],["Hombrera térmica",28000,11000,3500,74900],["Corrector de juanetes",15000,9000,2500,49900]];
-d.forEach((x,j)=>{$("n"+(j+1)).value=x[0];$("c"+(j+1)).value=x[1];$("s"+(j+1)).value=x[2];$("o"+(j+1)).value=x[3];$("p"+(j+1)).value=x[4]});
-status("✅ Demo cargada. Los resultados reales aparecerán al analizar.");
-}
-$("demo").onclick=demo;
-$("analyze").onclick=async()=>{
-try{
-let products=read();status("🔎 Investigando y comparando "+products.length+" producto"+(products.length===1?"":"s")+"...");
-$("analyze").disabled=true;$("demo").disabled=true;
-let r=await fetch("/api/research",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({products})});
-let raw=await r.text(),data;try{data=JSON.parse(raw)}catch{throw Error("El servidor no devolvió JSON válido.")}
-if(!r.ok)throw Error(data.error||"Error del servidor.");
-render(data);status("✅ Análisis terminado.");
-}catch(e){console.error(e);status("❌ "+e.message,true)}
-finally{$("analyze").disabled=false;$("demo").disabled=false}
+
+/* =========================
+   UTILIDADES
+========================= */
+
+const money = n => {
+
+  const value = Number(n);
+
+  if(!Number.isFinite(value)){
+    return "$0";
+  }
+
+  return new Intl.NumberFormat("es-CO",{
+    style:"currency",
+    currency:"COP",
+    maximumFractionDigits:0
+  }).format(value);
+
 };
+
+
+const number = n => {
+
+  const value = Number(n);
+
+  return Number.isFinite(value) ? value : 0;
+
+};
+
+
+const esc = value => {
+
+  return String(value ?? "")
+    .replace(/[&<>"']/g,c => ({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[c]));
+
+};
+
+
+const list = array => {
+
+  if(!Array.isArray(array) || !array.length){
+
+    return "<li>No disponible.</li>";
+
+  }
+
+  return array
+    .map(item => `<li>${esc(item)}</li>`)
+    .join("");
+
+};
+
+
+function status(message,error=false){
+
+  const el = $("status");
+
+  el.className =
+    "status show" +
+    (error ? " error" : "");
+
+  el.textContent = message;
+
+}
+
+
+/* =========================
+   CREAR LOS 5 PRODUCTOS
+========================= */
+
+for(let i=1;i<=5;i++){
+
+  $("products").insertAdjacentHTML(
+    "beforeend",
+`
+<article class="card">
+
+<h3>
+Producto ${i}${i>1 ? " (opcional)" : ""}
+</h3>
+
+<label>
+Nombre ${i===1 ? "*" : ""}
+</label>
+
+<input
+  id="n${i}"
+  placeholder="Ej. Rodillera térmica"
+/>
+
+
+<label>
+Descripción
+</label>
+
+<textarea
+  id="d${i}"
+  placeholder="Características y beneficio principal"
+></textarea>
+
+
+<label>
+URL
+</label>
+
+<input
+  id="u${i}"
+  placeholder="https://..."
+/>
+
+
+<div class="two">
+
+<div>
+
+<label>
+Costo COP *
+</label>
+
+<input
+  id="c${i}"
+  type="number"
+  min="0"
+  placeholder="30000"
+/>
+
+</div>
+
+
+<div>
+
+<label>
+Envío COP
+</label>
+
+<input
+  id="s${i}"
+  type="number"
+  min="0"
+  value="0"
+/>
+
+</div>
+
+</div>
+
+
+<div class="two">
+
+<div>
+
+<label>
+Otros costos COP
+</label>
+
+<input
+  id="o${i}"
+  type="number"
+  min="0"
+  value="0"
+/>
+
+</div>
+
+
+<div>
+
+<label>
+Precio venta COP *
+</label>
+
+<input
+  id="p${i}"
+  type="number"
+  min="0"
+  placeholder="79900"
+/>
+
+</div>
+
+</div>
+
+
+<label>
+Devoluciones/no recibidos %
+</label>
+
+<input
+  id="r${i}"
+  type="number"
+  value="5"
+  min="0"
+  max="100"
+/>
+
+</article>
+`
+  );
+
+}
+
+
+/* =========================
+   LEER PRODUCTOS
+========================= */
+
+function readProducts(){
+
+  const products=[];
+
+  for(let i=1;i<=5;i++){
+
+    const name =
+      $("n"+i).value.trim();
+
+    const description =
+      $("d"+i).value.trim();
+
+    const url =
+      $("u"+i).value.trim();
+
+    const costRaw =
+      $("c"+i).value.trim();
+
+    const salePriceRaw =
+      $("p"+i).value.trim();
+
+    const shippingRaw =
+      $("s"+i).value.trim();
+
+    const otherCostsRaw =
+      $("o"+i).value.trim();
+
+    const returnsRaw =
+      $("r"+i).value.trim();
+
+
+    const hasAny =
+      name ||
+      description ||
+      url ||
+      costRaw ||
+      salePriceRaw;
+
+
+    /*
+      Si el producto está completamente vacío,
+      simplemente lo ignoramos.
+    */
+
+    if(!hasAny){
+
+      continue;
+
+    }
+
+
+    /*
+      Si el usuario empezó a llenar un producto,
+      entonces sí exigimos los datos económicos básicos.
+    */
+
+    if(!name){
+
+      throw new Error(
+        `El producto ${i} tiene información, pero falta el nombre.`
+      );
+
+    }
+
+
+    const cost =
+      Number(costRaw);
+
+    const salePrice =
+      Number(salePriceRaw);
+
+
+    if(!Number.isFinite(cost) || cost<=0){
+
+      throw new Error(
+        `Falta un costo válido en el producto ${i}.`
+      );
+
+    }
+
+
+    if(!Number.isFinite(salePrice) || salePrice<=0){
+
+      throw new Error(
+        `Falta un precio de venta válido en el producto ${i}.`
+      );
+
+    }
+
+
+    const shipping =
+      Number(shippingRaw || 0);
+
+    const otherCosts =
+      Number(otherCostsRaw || 0);
+
+    const returns =
+      Number(returnsRaw || 0);
+
+
+    products.push({
+
+      id:i,
+
+      productName:name,
+
+      description,
+
+      url,
+
+      cost,
+
+      shipping:
+
+        Number.isFinite(shipping)
+          ? shipping
+          : 0,
+
+      otherCosts:
+
+        Number.isFinite(otherCosts)
+          ? otherCosts
+          : 0,
+
+      salePrice,
+
+      returns:
+
+        Number.isFinite(returns)
+          ? returns
+          : 0
+
+    });
+
+  }
+
+
+  if(products.length===0){
+
+    throw new Error(
+      "Introduce al menos 1 producto para comenzar el análisis."
+    );
+
+  }
+
+
+  return products;
+
+}
+
+
+/* =========================
+   CONTADOR DE PRODUCTOS
+========================= */
+
+function updateProductCount(){
+
+  let count=0;
+
+  for(let i=1;i<=5;i++){
+
+    const name =
+      $("n"+i).value.trim();
+
+    const description =
+      $("d"+i).value.trim();
+
+    const url =
+      $("u"+i).value.trim();
+
+    const cost =
+      $("c"+i).value.trim();
+
+    const price =
+      $("p"+i).value.trim();
+
+
+    if(
+      name ||
+      description ||
+      url ||
+      cost ||
+      price
+    ){
+
+      count++;
+
+    }
+
+  }
+
+
+  $("productCount").textContent =
+    count === 0
+      ? "0 productos preparados"
+      : `${count} producto${count===1 ? "" : "s"} preparado${count===1 ? "" : "s"}`;
+
+
+  const button =
+    $("analyze");
+
+
+  if(count===0){
+
+    button.textContent =
+      "🚀 ANALIZAR PRODUCTOS";
+
+  }else{
+
+    button.textContent =
+      `🚀 ANALIZAR ${count} PRODUCTO${count===1 ? "" : "S"}`;
+
+  }
+
+}
+
+
+/*
+  Actualizar contador cada vez
+  que el usuario escriba.
+*/
+
+for(let i=1;i<=5;i++){
+
+  [
+    "n",
+    "d",
+    "u",
+    "c",
+    "s",
+    "o",
+    "p",
+    "r"
+  ].forEach(prefix=>{
+
+    $(""+prefix+i)
+      .addEventListener(
+        "input",
+        updateProductCount
+      );
+
+  });
+
+}
+
+
+/* =========================
+   NORMALIZAR RESPUESTA IA
+========================= */
+
+function normalizeProduct(p,input,index){
+
+  p = p || {};
+  input = input || {};
+
+
+  const productName =
+    p.productName ||
+    p.name ||
+    input.productName ||
+    `Producto ${index+1}`;
+
+
+  const cost =
+    number(
+      p.cost ??
+      input.cost
+    );
+
+
+  const shipping =
+    number(
+      p.shipping ??
+      input.shipping
+    );
+
+
+  const otherCosts =
+    number(
+      p.otherCosts ??
+      input.otherCosts
+    );
+
+
+  const salePrice =
+    number(
+      p.salePrice ??
+      input.salePrice
+    );
+
+
+  const returns =
+    number(
+      p.returns ??
+      input.returns
+    );
+
+
+  /*
+    ECONOMÍA
+
+    Si la API no manda estos valores,
+    los calculamos aquí.
+  */
+
+  const calculatedMargin =
+    salePrice -
+    cost -
+    shipping -
+    otherCosts;
+
+
+  const margin =
+    number(
+      p.margin ??
+      calculatedMargin
+    );
+
+
+  const calculatedMarginPercent =
+    salePrice > 0
+      ? (margin / salePrice) * 100
+      : 0;
+
+
+  const marginPercent =
+    number(
+      p.marginPercent ??
+      calculatedMarginPercent
+    );
+
+
+  const calculatedMaxCPA =
+    Math.max(
+      0,
+      margin * (1 - returns / 100)
+    );
+
+
+  const maxCPA =
+    number(
+      p.maxCPA ??
+      calculatedMaxCPA
+    );
+
+
+  const calculatedTargetCPA =
+    Math.max(
+      0,
+      maxCPA * 0.55
+    );
+
+
+  const targetCPA =
+    number(
+      p.targetCPA ??
+      calculatedTargetCPA
+    );
+
+
+  const calculatedROAS =
+    margin > 0
+      ? salePrice / margin
+      : 0;
+
+
+  const breakEvenROAS =
+    number(
+      p.breakEvenROAS ??
+      calculatedROAS
+    );
+
+
+  /*
+    SCORE GENERAL
+  */
+
+  const overallScore =
+    number(
+      p.overallScore ??
+      p.score ??
+      p.totalScore
+    );
+
+
+  /*
+    SCORES DE PLATAFORMA
+  */
+
+  const metaScore =
+    number(
+      p.metaScore ??
+      p.meta ??
+      p.metaAdsScore
+    );
+
+
+  const tiktokScore =
+    number(
+      p.tiktokScore ??
+      p.tiktok ??
+      p.tiktokAdsScore
+    );
+
+
+  /*
+    CRITERIOS
+  */
+
+  const demand =
+    number(p.demand);
+
+
+  const competitionOpportunity =
+    number(
+      p.competitionOpportunity ??
+      p.competition ??
+      p.competitionScore
+    );
+
+
+  const visual =
+    number(p.visual);
+
+
+  const differentiation =
+    number(
+      p.differentiation ??
+      p.differentiationScore
+    );
+
+
+  const impulse =
+    number(
+      p.impulse ??
+      p.impulseScore
+    );
+
+
+  const economicScore =
+    number(
+      p.economicScore ??
+      p.economy
+    );
+
+
+  return {
+
+    ...p,
+
+    id:
+      p.id ??
+      input.id ??
+      index+1,
+
+    productName,
+
+    name:productName,
+
+    cost,
+
+    shipping,
+
+    otherCosts,
+
+    salePrice,
+
+    returns,
+
+    margin,
+
+    marginPercent,
+
+    maxCPA,
+
+    targetCPA,
+
+    breakEvenROAS,
+
+    overallScore,
+
+    score:overallScore,
+
+    demand,
+
+    competitionOpportunity,
+
+    visual,
+
+    differentiation,
+
+    impulse,
+
+    economicScore,
+
+    metaScore,
+
+    tiktokScore,
+
+    priority:
+      p.priority ||
+      p.decision ||
+      p.verdict ||
+      "",
+
+    decision:
+      p.decision ||
+      p.priority ||
+      p.verdict ||
+      "",
+
+    verdict:
+      p.verdict ||
+      p.priority ||
+      p.decision ||
+      "",
+
+    recommendedPlatform:
+      p.recommendedPlatform ||
+      p.platform ||
+      "",
+
+    summary:
+      p.summary ||
+      p.finalReason ||
+      "",
+
+    finalReason:
+      p.finalReason ||
+      p.summary ||
+      "",
+
+    strengths:
+      Array.isArray(p.strengths)
+        ? p.strengths
+        : [],
+
+    weaknesses:
+      Array.isArray(p.weaknesses)
+        ? p.weaknesses
+        : [],
+
+    risks:
+      Array.isArray(p.risks)
+        ? p.risks
+        : [],
+
+    angles:
+      Array.isArray(p.angles)
+        ? p.angles
+        : [],
+
+    testPlan:
+      Array.isArray(p.testPlan)
+        ? p.testPlan
+        : [],
+
+    platformReason:
+      p.platformReason ||
+      ""
+
+  };
+
+}
+
+
+/* =========================
+   RENDERIZAR RESULTADO
+========================= */
+
+function render(data,inputProducts){
+
+  const rawProducts =
+    Array.isArray(data.products)
+      ? data.products
+      : [];
+
+
+  if(!rawProducts.length){
+
+    throw new Error(
+      "La IA no devolvió productos para comparar."
+    );
+
+  }
+
+
+  /*
+    Relacionamos cada resultado
+    con el producto enviado.
+  */
+
+  const normalized =
+    rawProducts.map(
+      (p,index)=>
+        normalizeProduct(
+          p,
+          inputProducts[index] || {},
+          index
+        )
+    );
+
+
+  /*
+    Orden general
+  */
+
+  const products =
+    normalized
+      .slice()
+      .sort(
+        (a,b)=>
+          b.overallScore -
+          a.overallScore
+      );
+
+
+  /*
+    GANADOR GENERAL
+  */
+
+  const winner =
+    products[0];
+
+
+  /*
+    GANADOR META
+  */
+
+  const metaWinner =
+    products.reduce(
+      (best,current)=>
+        current.metaScore >
+        best.metaScore
+          ? current
+          : best,
+      products[0]
+    );
+
+
+  /*
+    GANADOR TIKTOK
+  */
+
+  const tiktokWinner =
+    products.reduce(
+      (best,current)=>
+        current.tiktokScore >
+        best.tiktokScore
+          ? current
+          : best,
+      products[0]
+    );
+
+
+  $("empty").style.display =
+    "none";
+
+  $("report").style.display =
+    "block";
+
+
+  $("report").innerHTML = `
+
+<div class="winner">
+
+<h2>🏆 GANADOR GENERAL</h2>
+
+<h2>
+${esc(winner.productName)}
+</h2>
+
+<div class="big">
+${winner.overallScore}/100
+</div>
+
+<p>
+<b>
+${esc(
+  winner.priority ||
+  winner.decision ||
+  winner.verdict ||
+  ""
+)}
+</b>
+
+· Plataforma recomendada:
+
+<b>
+${esc(
+  winner.recommendedPlatform ||
+  "Por determinar"
+)}
+</b>
+
+</p>
+
+<p>
+${esc(
+  winner.finalReason ||
+  winner.summary ||
+  "Análisis completado."
+)}
+</p>
+
+</div>
+
+
+<div class="twoReport">
+
+<div class="card">
+
+<h3>🔵 Mejor Meta Ads</h3>
+
+<b>
+${esc(metaWinner.productName)}
+</b>
+
+<p>
+<b>
+${metaWinner.metaScore}/100
+</b>
+</p>
+
+<p>
+${esc(
+  metaWinner.platformReason ||
+  "Mejor puntuación relativa para Meta Ads."
+)}
+</p>
+
+</div>
+
+
+<div class="card">
+
+<h3>🎵 Mejor TikTok Ads</h3>
+
+<b>
+${esc(tiktokWinner.productName)}
+</b>
+
+<p>
+<b>
+${tiktokWinner.tiktokScore}/100
+</b>
+</p>
+
+<p>
+${esc(
+  tiktokWinner.platformReason ||
+  "Mejor puntuación relativa para TikTok Ads."
+)}
+</p>
+
+</div>
+
+</div>
+
+
+<div style="margin-top:18px">
+
+<h2>📊 Ranking</h2>
+
+<div class="table">
+
+<table>
+
+<tr>
+
+<th>#</th>
+
+<th>Producto</th>
+
+<th>Score</th>
+
+<th>Demanda</th>
+
+<th>Competencia*</th>
+
+<th>Visual</th>
+
+<th>Dif.</th>
+
+<th>Impulso</th>
+
+<th>Economía</th>
+
+<th>Meta</th>
+
+<th>TikTok</th>
+
+<th>Veredicto</th>
+
+</tr>
+
+
+${products.map((p,index)=>`
+
+<tr>
+
+<td>
+${index+1}
+</td>
+
+<td>
+<b>
+${esc(p.productName)}
+</b>
+</td>
+
+<td>
+<b>
+${p.overallScore}/100
+</b>
+</td>
+
+<td>
+${p.demand}/5
+</td>
+
+<td>
+${p.competitionOpportunity}/5
+</td>
+
+<td>
+${p.visual}/5
+</td>
+
+<td>
+${p.differentiation}/5
+</td>
+
+<td>
+${p.impulse}/5
+</td>
+
+<td>
+${p.economicScore}/100
+</td>
+
+<td>
+${p.metaScore}/100
+</td>
+
+<td>
+${p.tiktokScore}/100
+</td>
+
+<td>
+${esc(
+  p.verdict ||
+  p.priority ||
+  p.decision ||
+  ""
+)}
+</td>
+
+</tr>
+
+`).join("")}
+
+</table>
+
+</div>
+
+<p class="muted">
+
+* Competencia: 5/5 significa
+oportunidad competitiva favorable,
+no ausencia de competencia.
+
+</p>
+
+</div>
+
+
+<div class="twoReport">
+
+<div class="card">
+
+<h3>💰 Economía del ganador</h3>
+
+<p>
+Margen:
+<b>
+${money(winner.margin)}
+</b>
+
+(
+${Number(winner.marginPercent).toFixed(1)}%
+)
+
+</p>
+
+
+<p>
+CPA máximo:
+<b>
+${money(winner.maxCPA)}
+</b>
+</p>
+
+
+<p>
+CPA objetivo:
+<b>
+${money(winner.targetCPA)}
+</b>
+</p>
+
+
+<p>
+ROAS equilibrio:
+<b>
+${Number(winner.breakEvenROAS).toFixed(2)}x
+</b>
+</p>
+
+</div>
+
+
+<div class="card">
+
+<h3>🎯 Recomendación</h3>
+
+<p>
+
+${esc(
+  data.recommendation ||
+  `Priorizar ${winner.productName} como producto ganador general.`
+)}
+
+</p>
+
+</div>
+
+</div>
+
+
+<div class="twoReport">
+
+<div>
+
+<h3>💪 Fortalezas</h3>
+
+<ul>
+${list(winner.strengths)}
+</ul>
+
+</div>
+
+
+<div>
+
+<h3>⚠️ Debilidades</h3>
+
+<ul>
+${list(winner.weaknesses)}
+</ul>
+
+</div>
+
+</div>
+
+
+<div class="twoReport">
+
+<div>
+
+<h3>🎯 Ángulos</h3>
+
+<ol>
+${list(winner.angles)}
+</ol>
+
+</div>
+
+
+<div>
+
+<h3>🧪 Plan de test</h3>
+
+<ol>
+${list(winner.testPlan)}
+</ol>
+
+</div>
+
+</div>
+
+
+<div>
+
+<h3>🚨 Riesgos</h3>
+
+<ul>
+${list(winner.risks)}
+</ul>
+
+</div>
+
+
+<div>
+
+<h3>🔎 Investigación</h3>
+
+<ul>
+${list(data.researchNotes)}
+</ul>
+
+
+${
+  Array.isArray(data.sources)
+    ? data.sources.map(source=>`
+
+<p>
+
+<a
+  target="_blank"
+  rel="noopener noreferrer"
+  href="${esc(source.url)}"
+>
+${esc(
+  source.title ||
+  source.name ||
+  source.url ||
+  "Fuente"
+)}
+</a>
+
+</p>
+
+`).join("")
+    : ""
+}
+
+</div>
+
+`;
+
+}
+
+
+/* =========================
+   DEMO
+========================= */
+
+function demo(){
+
+  const demoProducts = [
+
+    [
+      "Rodillera térmica",
+      "Rodillera térmica ajustable de neopreno, con calentamiento USB.",
+      30000,
+      12000,
+      4000,
+      79900
+    ],
+
+    [
+      "D-TOX",
+      "Tabletas con alcachofa, ruibarbo, ajo, berenjena y menta. Fórmula natural para apoyar la digestión y el tránsito intestinal.",
+      48000,
+      12000,
+      6000,
+      129900
+    ],
+
+    [
+      "Ergoback",
+      "Corrector de postura ajustable para uso diario.",
+      25000,
+      10000,
+      3000,
+      69900
+    ],
+
+    [
+      "Muñequera térmica",
+      "Muñequera térmica ajustable con calentamiento USB.",
+      22000,
+      10000,
+      3000,
+      59900
+    ],
+
+    [
+      "Corrector de juanetes",
+      "Corrector ajustable para ayudar a mantener el dedo en una posición adecuada.",
+      15000,
+      9000,
+      2500,
+      49900
+    ]
+
+  ];
+
+
+  demoProducts.forEach(
+    (product,index)=>{
+
+      const n=index+1;
+
+      $("n"+n).value =
+        product[0];
+
+      $("d"+n).value =
+        product[1];
+
+      $("c"+n).value =
+        product[2];
+
+      $("s"+n).value =
+        product[3];
+
+      $("o"+n).value =
+        product[4];
+
+      $("p"+n).value =
+        product[5];
+
+      $("r"+n).value =
+        5;
+
+    }
+  );
+
+
+  updateProductCount();
+
+  status(
+    "✅ Demo cargada. Puedes analizar los 5 productos o borrar los que no quieras evaluar."
+  );
+
+}
+
+
+/* =========================
+   BOTÓN DEMO
+========================= */
+
+$("demo").onclick =
+  demo;
+
+
+/* =========================
+   ANALIZAR
+========================= */
+
+$("analyze").onclick =
+async function(){
+
+  try{
+
+    /*
+      Leer únicamente
+      los productos que tengan información.
+    */
+
+    const products =
+      readProducts();
+
+
+    status(
+      `🔎 Investigando y comparando ${products.length} producto${products.length===1 ? "" : "s"}...`
+    );
+
+
+    $("analyze").disabled =
+      true;
+
+    $("demo").disabled =
+      true;
+
+
+    /*
+      ENVIAR A LA API
+    */
+
+    const response =
+      await fetch(
+        "/api/research",
+        {
+          method:"POST",
+
+          headers:{
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              products
+            })
+        }
+      );
+
+
+    /*
+      Primero obtenemos texto.
+      Esto permite detectar errores
+      aunque Vercel no devuelva JSON.
+    */
+
+    const raw =
+      await response.text();
+
+
+    let data;
+
+
+    try{
+
+      data =
+        JSON.parse(raw);
+
+    }catch(error){
+
+      console.error(
+        "Respuesta no JSON:",
+        raw
+      );
+
+      throw new Error(
+        "El servidor no devolvió JSON válido."
+      );
+
+    }
+
+
+    /*
+      Errores HTTP
+    */
+
+    if(!response.ok){
+
+      throw new Error(
+        data.error ||
+        "El servidor devolvió un error."
+      );
+
+    }
+
+
+    /*
+      Renderizar resultado
+    */
+
+    render(
+      data,
+      products
+    );
+
+
+    status(
+      `✅ Análisis terminado: ${products.length} producto${products.length===1 ? "" : "s"} comparado${products.length===1 ? "" : "s"}.`
+    );
+
+
+  }catch(error){
+
+    console.error(
+      "Error de análisis:",
+      error
+    );
+
+
+    status(
+      "❌ " +
+      (
+        error.message ||
+        "Ocurrió un error durante el análisis."
+      ),
+      true
+    );
+
+
+  }finally{
+
+    $("analyze").disabled =
+      false;
+
+    $("demo").disabled =
+      false;
+
+  }
+
+};
+
+
+/* =========================
+   INICIO
+========================= */
+
+updateProductCount();
+
 </script>
-</body></html>
+
+</body>
+</html>
