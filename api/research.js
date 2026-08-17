@@ -16,64 +16,45 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const body = req.body || {};
+    // =========================================================
+    // 1. RECIBIR PRODUCTOS
+    // =========================================================
 
-    /*
-     * ============================================================
-     * 1. NORMALIZAR PRODUCTOS
-     * ============================================================
-     *
-     * El sistema acepta:
-     *
-     * A) Nuevo formato:
-     * {
-     *   products: [...]
-     * }
-     *
-     * B) Formato antiguo:
-     * {
-     *   productName: "...",
-     *   cost: ...
-     * }
-     *
-     * Esto permite que la aplicación siga funcionando durante
-     * la transición.
-     */
+    let body = req.body || {};
 
-    let products = [];
-
-    if (Array.isArray(body.products)) {
-      products = body.products;
-    } else if (
-      body.productName ||
-      body.product ||
-      body.name
-    ) {
-      products = [body];
+    // Algunos entornos pueden entregar req.body como texto
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        return res.status(400).json({
+          error: "El cuerpo de la solicitud no contiene JSON válido."
+        });
+      }
     }
 
-    if (!Array.isArray(products) || products.length < 1) {
+    const inputProducts = Array.isArray(body.products)
+      ? body.products
+      : [];
+
+    if (inputProducts.length < 1) {
       return res.status(400).json({
-        error: "Debes introducir al menos un producto."
+        error: "Debes enviar al menos 1 producto."
       });
     }
 
-    if (products.length > 5) {
+    if (inputProducts.length > 5) {
       return res.status(400).json({
         error: "Puedes analizar máximo 5 productos."
       });
     }
 
-    /*
-     * ============================================================
-     * 2. NORMALIZAR Y VALIDAR CADA PRODUCTO
-     * ============================================================
-     */
+    // =========================================================
+    // 2. NORMALIZAR Y VALIDAR PRODUCTOS
+    // =========================================================
 
-    const normalizedProducts = [];
-
-    for (let i = 0; i < products.length; i++) {
-      const p = products[i] || {};
+    const products = inputProducts.map((p, index) => {
+      const id = Number(p.id) || index + 1;
 
       const productName = String(
         p.productName ||
@@ -90,81 +71,33 @@ module.exports = async function handler(req, res) {
         p.url || ""
       ).trim();
 
-      const cost = Number(
-        p.cost ?? 0
-      );
-
-      const shipping = Number(
-        p.shipping ?? 0
-      );
-
-      const otherCosts = Number(
-        p.otherCosts ??
-        p.other ??
-        0
-      );
-
-      const salePrice = Number(
-        p.salePrice ??
-        p.price ??
-        0
-      );
-
-      const returns = Number(
-        p.returns ?? 0
-      );
+      const cost = Number(p.cost || 0);
+      const shipping = Number(p.shipping || 0);
+      const otherCosts = Number(p.otherCosts || 0);
+      const salePrice = Number(p.salePrice || 0);
+      const returns = Number(p.returns || 0);
 
       if (!productName) {
-        return res.status(400).json({
-          error: `Falta el nombre del producto ${i + 1}.`
-        });
+        throw new Error(
+          `Falta el nombre del producto ${id}.`
+        );
       }
 
-      if (
-        !Number.isFinite(cost) ||
-        cost <= 0
-      ) {
-        return res.status(400).json({
-          error: `El costo del producto ${i + 1} debe ser mayor que cero.`
-        });
+      if (!Number.isFinite(cost) || cost <= 0) {
+        throw new Error(
+          `El costo del producto "${productName}" debe ser mayor que cero.`
+        );
       }
 
-      if (
-        !Number.isFinite(salePrice) ||
-        salePrice <= 0
-      ) {
-        return res.status(400).json({
-          error: `El precio de venta del producto ${i + 1} debe ser mayor que cero.`
-        });
+      if (!Number.isFinite(salePrice) || salePrice <= 0) {
+        throw new Error(
+          `El precio de venta del producto "${productName}" debe ser mayor que cero.`
+        );
       }
 
-      if (
-        !Number.isFinite(shipping) ||
-        shipping < 0
-      ) {
-        return res.status(400).json({
-          error: `El envío del producto ${i + 1} no es válido.`
-        });
-      }
-
-      if (
-        !Number.isFinite(otherCosts) ||
-        otherCosts < 0
-      ) {
-        return res.status(400).json({
-          error: `Los otros costos del producto ${i + 1} no son válidos.`
-        });
-      }
-
-      if (
-        !Number.isFinite(returns) ||
-        returns < 0 ||
-        returns > 100
-      ) {
-        return res.status(400).json({
-          error: `El porcentaje de devoluciones del producto ${i + 1} no es válido.`
-        });
-      }
+      // =======================================================
+      // ECONOMÍA DEL PRODUCTO
+      // =======================================================
 
       const margin =
         salePrice -
@@ -177,10 +110,16 @@ module.exports = async function handler(req, res) {
           ? (margin / salePrice) * 100
           : 0;
 
+      const returnFactor =
+        Math.max(
+          0,
+          Math.min(100, returns)
+        ) / 100;
+
       const maxCPA =
         Math.max(
           0,
-          margin * (1 - returns / 100)
+          margin * (1 - returnFactor)
         );
 
       const targetCPA =
@@ -194,8 +133,27 @@ module.exports = async function handler(req, res) {
           ? salePrice / margin
           : 0;
 
-      normalizedProducts.push({
-        id: i + 1,
+      // Score económico 0-100
+      let economicScore = 0;
+
+      if (marginPercent >= 60) {
+        economicScore = 100;
+      } else if (marginPercent >= 50) {
+        economicScore = 90;
+      } else if (marginPercent >= 40) {
+        economicScore = 80;
+      } else if (marginPercent >= 30) {
+        economicScore = 65;
+      } else if (marginPercent >= 20) {
+        economicScore = 50;
+      } else if (marginPercent > 0) {
+        economicScore = 30;
+      } else {
+        economicScore = 0;
+      }
+
+      return {
+        id,
         productName,
         description,
         url,
@@ -208,17 +166,16 @@ module.exports = async function handler(req, res) {
         marginPercent,
         maxCPA,
         targetCPA,
-        breakEvenROAS
-      });
-    }
+        breakEvenROAS,
+        economicScore
+      };
+    });
 
-    /*
-     * ============================================================
-     * 3. INFORMACIÓN PARA LA IA
-     * ============================================================
-     */
+    // =========================================================
+    // 3. PREPARAR INFORMACIÓN PARA LA IA
+    // =========================================================
 
-    const productInfo = normalizedProducts
+    const productInformation = products
       .map((p) => {
         return `
 PRODUCTO ${p.id}
@@ -230,67 +187,132 @@ ${p.description || "No proporcionada"}
 URL:
 ${p.url || "No proporcionada"}
 
-Costo producto: ${p.cost} COP
-Envío asumido: ${p.shipping} COP
+Economía:
+Costo: ${p.cost} COP
+Envío: ${p.shipping} COP
 Otros costos: ${p.otherCosts} COP
-Precio de venta: ${p.salePrice} COP
+Precio venta: ${p.salePrice} COP
 Devoluciones/no recibidos: ${p.returns}%
 
-Economía calculada:
+Cálculos:
 Margen: ${p.margin} COP
 Margen porcentual: ${p.marginPercent.toFixed(2)}%
 CPA máximo: ${p.maxCPA.toFixed(0)} COP
 CPA objetivo: ${p.targetCPA.toFixed(0)} COP
-ROAS de equilibrio: ${p.breakEvenROAS.toFixed(2)}x
+ROAS equilibrio: ${p.breakEvenROAS.toFixed(2)}x
+Score económico: ${p.economicScore}/100
 `;
       })
-      .join("\n-----------------------------\n");
+      .join("\n-------------------------\n");
 
-    /*
-     * ============================================================
-     * 4. PROMPT PRINCIPAL
-     * ============================================================
-     */
+    // =========================================================
+    // 4. PROMPT PRINCIPAL
+    // =========================================================
 
     const prompt = `
-Actúa como un analista senior de productos para ecommerce,
-dropshipping y publicidad digital en Colombia.
+Actúa como un analista profesional de ecommerce, dropshipping y publicidad digital para el mercado colombiano.
 
-Estamos construyendo un Detector de Producto Ganador.
+Debes analizar y COMPARAR ${products.length} producto(s).
 
-Debes analizar ${normalizedProducts.length} producto(s).
+OBJETIVO PRINCIPAL:
 
-OBJETIVO:
+Determinar cuál producto tiene mayor potencial para ser probado mediante publicidad pagada y determinar específicamente:
 
-Determinar cuáles productos tienen mayor potencial para ser
-probados con publicidad pagada y seleccionar:
+1. Ganador general
+2. Mejor producto para Meta Ads
+3. Mejor producto para TikTok Ads
+4. Ranking completo de todos los productos
 
-1. GANADOR GENERAL
-2. GANADOR PARA META ADS
-3. GANADOR PARA TIKTOK ADS
+NO debes asumir que necesariamente gana el producto con mayor margen.
+
+Debes considerar conjuntamente:
+
+- Demanda potencial
+- Competencia
+- Potencial visual
+- Diferenciación
+- Compra por impulso
+- Economía unitaria
+- Facilidad para crear anuncios
+- Capacidad de demostrar el beneficio
+- Potencial UGC
+- Adecuación a Meta Ads
+- Adecuación a TikTok Ads
+- Riesgos publicitarios
+- Riesgo de saturación
+- Precio percibido
+- Relación problema-solución
+- Potencial para escalar
 
 IMPORTANTE:
 
 - No inventes ventas reales.
-- No inventes datos de mercado como si fueran datos comprobados.
-- Cuando no exista información verificable, utiliza lenguaje de estimación.
-- Evalúa cada producto individualmente.
-- Compara los productos entre sí.
-- Considera la economía unitaria.
-- Considera el potencial de los creativos.
-- Considera la facilidad de demostrar el producto.
-- Considera la fuerza del problema que resuelve.
-- Considera compra por impulso.
-- Considera competencia.
-- Considera diferenciación.
-- Considera riesgos.
-- Considera especialmente ecommerce en Colombia.
-- No favorezcas un producto solamente porque tenga mayor margen.
-- Un producto con menor margen puede ganar si tiene mejor potencial publicitario.
-- Meta Ads debe evaluarse considerando Facebook e Instagram.
-- TikTok Ads debe evaluarse considerando contenido visual, UGC,
-  demostración, transformación y potencial viral.
-- La puntuación debe ser de 0 a 100.
+- No inventes cifras de mercado.
+- No presentes estimaciones como datos comprobados.
+- Si no tienes información suficiente sobre un punto, utiliza una estimación razonada y aclara que es una estimación.
+- El análisis debe estar orientado al mercado colombiano.
+- Considera las políticas publicitarias de Meta y TikTok.
+- Evita claims médicos o promesas de resultados garantizados.
+- En productos de salud, prioriza lenguaje de bienestar, comodidad, apoyo y experiencia de usuario.
+- NO confundas "competencia" con "oportunidad competitiva".
+- Un producto puede tener mucha competencia y aun así tener una buena oportunidad.
+- La puntuación de competencia debe representar OPORTUNIDAD COMPETITIVA:
+  5 = oportunidad muy favorable
+  4 = oportunidad favorable
+  3 = oportunidad media
+  2 = oportunidad difícil
+  1 = oportunidad muy difícil
+
+ESCALA PARA LOS CRITERIOS:
+
+Demanda:
+1 = muy baja
+2 = baja
+3 = media
+4 = alta
+5 = muy alta
+
+Competencia/oportunidad:
+1 = muy desfavorable
+2 = desfavorable
+3 = media
+4 = favorable
+5 = muy favorable
+
+Visual:
+1 = muy difícil de demostrar
+2 = difícil
+3 = medio
+4 = bueno
+5 = excelente
+
+Diferenciación:
+1 = muy difícil diferenciar
+2 = difícil
+3 = media
+4 = buena
+5 = excelente
+
+Impulso:
+1 = muy bajo
+2 = bajo
+3 = medio
+4 = alto
+5 = muy alto
+
+PARA EL SCORE GENERAL:
+
+Debes ponderar aproximadamente:
+
+Demanda: 20%
+Competencia/oportunidad: 15%
+Visual: 15%
+Diferenciación: 10%
+Impulso: 10%
+Economía: 20%
+Potencial publicitario/plataforma: 10%
+
+El resultado final debe estar entre 0 y 100.
 
 REGLA DE DECISIÓN:
 
@@ -300,352 +322,113 @@ REGLA DE DECISIÓN:
 50-59 = PRODUCTO DÉBIL
 0-49 = NO PRIORITARIO
 
-CRITERIOS:
+PARA META ADS:
 
-DEMANDA:
-1 = muy baja
-2 = baja
-3 = media
-4 = alta
-5 = muy alta
+Considera especialmente:
+- Problema-solución
+- Público identificable
+- UGC testimonial
+- Demostración visual
+- Capacidad de explicar el beneficio rápidamente
+- Capacidad de segmentación creativa
+- Potencial de conversión
 
-COMPETENCIA:
-1 = muy baja/favorable
-2 = baja
-3 = media
-4 = alta
-5 = muy alta/desfavorable
+PARA TIKTOK ADS:
 
-POTENCIAL VISUAL:
-1 = difícil de demostrar
-2 = poco visual
-3 = visual medio
-4 = buen potencial
-5 = excelente potencial
+Considera especialmente:
+- Hook visual
+- Transformación/demostración
+- UGC
+- Viralidad
+- Curiosidad
+- Entretenimiento
+- Facilidad de mostrar el producto en pocos segundos
 
-DIFERENCIACIÓN:
-1 = producto completamente comoditizado
-2 = poca diferenciación
-3 = diferenciación moderada
-4 = buena diferenciación
-5 = muy fácil construir propuesta diferente
+PRODUCTOS A ANALIZAR:
 
-IMPULSO:
-1 = compra racional/lenta
-2 = poco impulso
-3 = impulso medio
-4 = buen impulso
-5 = fuerte compra por impulso
+${productInformation}
 
-PRODUCTOS:
+Devuelve ÚNICAMENTE un objeto JSON válido.
 
-${productInfo}
+NO uses markdown.
+NO uses bloques de código.
+NO pongas texto antes del JSON.
+NO pongas texto después del JSON.
 
-Analiza todos los productos y compáralos.
+La estructura EXACTA debe ser:
 
-Para seleccionar los ganadores considera:
+{
+  "products": [
+    {
+      "id": 1,
+      "productName": "",
+      "overallScore": 0,
+      "demand": 0,
+      "competitionOpportunity": 0,
+      "visual": 0,
+      "differentiation": 0,
+      "impulse": 0,
+      "economicScore": 0,
+      "metaScore": 0,
+      "tiktokScore": 0,
+      "verdict": "",
+      "priority": "",
+      "recommendedPlatform": "",
+      "summary": "",
+      "finalReason": "",
+      "platformReason": "",
+      "strengths": [],
+      "weaknesses": [],
+      "risks": [],
+      "angles": [],
+      "testPlan": [],
+      "researchNotes": [],
+      "margin": 0,
+      "marginPercent": 0,
+      "maxCPA": 0,
+      "targetCPA": 0,
+      "breakEvenROAS": 0
+    }
+  ],
+  "overallWinner": {
+    "id": 1,
+    "productName": ""
+  },
+  "metaWinner": {
+    "id": 1,
+    "productName": ""
+  },
+  "tiktokWinner": {
+    "id": 1,
+    "productName": ""
+  },
+  "recommendation": "",
+  "researchNotes": [],
+  "sources": []
+}
 
-GANADOR GENERAL:
-El mejor equilibrio entre demanda, competencia, visual,
-diferenciación, impulso y economía.
+REGLAS ADICIONALES:
 
-GANADOR META ADS:
-El producto que tenga mejor potencial para Facebook e Instagram,
-especialmente para demostraciones, UGC, problema-solución y
-segmentación amplia.
-
-GANADOR TIKTOK ADS:
-El producto con mayor potencial para contenido corto,
-demostración visual, transformación, sorpresa, UGC y
-retención.
-
-Devuelve exclusivamente los datos solicitados en el esquema JSON.
+- "products" debe contener EXACTAMENTE ${products.length} elementos.
+- Cada elemento debe corresponder a uno de los productos enviados.
+- No inventes productos adicionales.
+- Los IDs deben coincidir con los IDs recibidos.
+- overallWinner.id debe corresponder al mejor producto.
+- metaWinner.id debe corresponder al mejor producto para Meta Ads.
+- tiktokWinner.id debe corresponder al mejor producto para TikTok Ads.
+- Todos los scores deben ser números.
+- overallScore debe ser un número entre 0 y 100.
+- demand, competitionOpportunity, visual, differentiation e impulse deben ser números enteros entre 1 y 5.
+- economicScore, metaScore y tiktokScore deben ser números entre 0 y 100.
+- strengths, weaknesses, risks, angles, testPlan y researchNotes deben ser arrays.
 `;
 
-    /*
-     * ============================================================
-     * 5. ESQUEMA DE RESPUESTA
-     * ============================================================
-     */
-
-    const schema = {
-      type: "object",
-      additionalProperties: false,
-
-      properties: {
-        products: {
-          type: "array",
-          minItems: 1,
-          maxItems: 5,
-
-          items: {
-            type: "object",
-            additionalProperties: false,
-
-            properties: {
-              id: {
-                type: "integer"
-              },
-
-              productName: {
-                type: "string"
-              },
-
-              score: {
-                type: "number"
-              },
-
-              confidence: {
-                type: "number"
-              },
-
-              decision: {
-                type: "string"
-              },
-
-              recommendedPlatform: {
-                type: "string"
-              },
-
-              margin: {
-                type: "number"
-              },
-
-              marginPercent: {
-                type: "number"
-              },
-
-              maxCPA: {
-                type: "number"
-              },
-
-              targetCPA: {
-                type: "number"
-              },
-
-              breakEvenROAS: {
-                type: "number"
-              },
-
-              demand: {
-                type: "integer"
-              },
-
-              competition: {
-                type: "integer"
-              },
-
-              visual: {
-                type: "integer"
-              },
-
-              differentiation: {
-                type: "integer"
-              },
-
-              impulse: {
-                type: "integer"
-              },
-
-              summary: {
-                type: "string"
-              },
-
-              strengths: {
-                type: "array",
-                items: {
-                  type: "string"
-                }
-              },
-
-              weaknesses: {
-                type: "array",
-                items: {
-                  type: "string"
-                }
-              },
-
-              risks: {
-                type: "array",
-                items: {
-                  type: "string"
-                }
-              },
-
-              angles: {
-                type: "array",
-                items: {
-                  type: "string"
-                }
-              },
-
-              testPlan: {
-                type: "array",
-                items: {
-                  type: "string"
-                }
-              },
-
-              researchNotes: {
-                type: "array",
-                items: {
-                  type: "string"
-                }
-              },
-
-              sources: {
-                type: "array",
-                items: {
-                  type: "object",
-                  additionalProperties: false,
-                  properties: {
-                    title: {
-                      type: "string"
-                    },
-                    url: {
-                      type: "string"
-                    }
-                  },
-                  required: [
-                    "title",
-                    "url"
-                  ]
-                }
-              }
-            },
-
-            required: [
-              "id",
-              "productName",
-              "score",
-              "confidence",
-              "decision",
-              "recommendedPlatform",
-              "margin",
-              "marginPercent",
-              "maxCPA",
-              "targetCPA",
-              "breakEvenROAS",
-              "demand",
-              "competition",
-              "visual",
-              "differentiation",
-              "impulse",
-              "summary",
-              "strengths",
-              "weaknesses",
-              "risks",
-              "angles",
-              "testPlan",
-              "researchNotes",
-              "sources"
-            ]
-          }
-        },
-
-        overallWinner: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            id: {
-              type: "integer"
-            },
-            productName: {
-              type: "string"
-            }
-          },
-          required: [
-            "id",
-            "productName"
-          ]
-        },
-
-        metaWinner: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            id: {
-              type: "integer"
-            },
-            productName: {
-              type: "string"
-            }
-          },
-          required: [
-            "id",
-            "productName"
-          ]
-        },
-
-        tiktokWinner: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            id: {
-              type: "integer"
-            },
-            productName: {
-              type: "string"
-            }
-          },
-          required: [
-            "id",
-            "productName"
-          ]
-        },
-
-        recommendation: {
-          type: "string"
-        },
-
-        researchNotes: {
-          type: "array",
-          items: {
-            type: "string"
-          }
-        },
-
-        sources: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              title: {
-                type: "string"
-              },
-              url: {
-                type: "string"
-              }
-            },
-            required: [
-              "title",
-              "url"
-            ]
-          }
-        }
-      },
-
-      required: [
-        "products",
-        "overallWinner",
-        "metaWinner",
-        "tiktokWinner",
-        "recommendation",
-        "researchNotes",
-        "sources"
-      ]
-    };
-
-    /*
-     * ============================================================
-     * 6. LLAMADA A OPENAI
-     * ============================================================
-     */
+    // =========================================================
+    // 5. LLAMADA A OPENAI
+    // =========================================================
 
     const model =
-      process.env.OPENAI_MODEL ||
-      "gpt-5";
+      process.env.OPENAI_MODEL || "gpt-5";
 
     const response = await fetch(
       "https://api.openai.com/v1/responses",
@@ -659,28 +442,16 @@ Devuelve exclusivamente los datos solicitados en el esquema JSON.
 
         body: JSON.stringify({
           model,
-
-          input: prompt,
-
-          text: {
-            format: {
-              type: "json_schema",
-              name: "product_winner_analysis",
-              strict: true,
-              schema
-            }
-          }
+          input: prompt
         })
       }
     );
 
     const raw = await response.text();
 
-    /*
-     * ============================================================
-     * 7. ERROR DE OPENAI
-     * ============================================================
-     */
+    // =========================================================
+    // 6. ERROR DE OPENAI
+    // =========================================================
 
     if (!response.ok) {
       console.error(
@@ -696,13 +467,17 @@ Devuelve exclusivamente los datos solicitados en el esquema JSON.
       });
     }
 
+    // =========================================================
+    // 7. PARSEAR RESPUESTA DE OPENAI
+    // =========================================================
+
     let openaiData;
 
     try {
       openaiData = JSON.parse(raw);
-    } catch (error) {
+    } catch {
       console.error(
-        "Respuesta de OpenAI no JSON:",
+        "Respuesta HTTP de OpenAI no válida:",
         raw
       );
 
@@ -712,36 +487,26 @@ Devuelve exclusivamente los datos solicitados en el esquema JSON.
       });
     }
 
-    /*
-     * ============================================================
-     * 8. EXTRAER TEXTO DE RESPONSES API
-     * ============================================================
-     */
-
     let text = "";
 
+    // Forma habitual
     if (
       typeof openaiData.output_text === "string"
     ) {
       text = openaiData.output_text;
     }
 
+    // Compatibilidad con diferentes respuestas
     if (
       !text &&
       Array.isArray(openaiData.output)
     ) {
-      for (
-        const item of openaiData.output
-      ) {
-        if (
-          !Array.isArray(item.content)
-        ) {
+      for (const item of openaiData.output) {
+        if (!Array.isArray(item.content)) {
           continue;
         }
 
-        for (
-          const content of item.content
-        ) {
+        for (const content of item.content) {
           if (
             content &&
             typeof content.text === "string"
@@ -766,11 +531,9 @@ Devuelve exclusivamente los datos solicitados en el esquema JSON.
       });
     }
 
-    /*
-     * ============================================================
-     * 9. PARSEAR JSON
-     * ============================================================
-     */
+    // =========================================================
+    // 8. LIMPIAR MARKDOWN SI EL MODELO LO AGREGA
+    // =========================================================
 
     text = text
       .replace(/^```json\s*/i, "")
@@ -778,58 +541,46 @@ Devuelve exclusivamente los datos solicitados en el esquema JSON.
       .replace(/\s*```$/i, "")
       .trim();
 
-    let result;
-
-    try {
-      result = JSON.parse(text);
-    } catch (error) {
-      console.error(
-        "JSON inválido recibido del modelo:",
-        text
-      );
-
-      /*
-       * Intento adicional:
-       * localizar el primer objeto JSON completo.
-       */
-
+    // Buscar objeto JSON si existe texto adicional
+    if (!text.startsWith("{")) {
       const firstBrace = text.indexOf("{");
       const lastBrace = text.lastIndexOf("}");
 
       if (
         firstBrace !== -1 &&
+        lastBrace !== -1 &&
         lastBrace > firstBrace
       ) {
-        try {
-          result = JSON.parse(
-            text.slice(
-              firstBrace,
-              lastBrace + 1
-            )
-          );
-        } catch (secondError) {
-          return res.status(502).json({
-            error:
-              "La IA no devolvió JSON válido.",
-            details:
-              text.slice(0, 1500)
-          });
-        }
-      } else {
-        return res.status(502).json({
-          error:
-            "La IA no devolvió JSON válido.",
-          details:
-            text.slice(0, 1500)
-        });
+        text = text.slice(
+          firstBrace,
+          lastBrace + 1
+        );
       }
     }
 
-    /*
-     * ============================================================
-     * 10. NORMALIZAR RESULTADO
-     * ============================================================
-     */
+    // =========================================================
+    // 9. PARSEAR JSON DE LA IA
+    // =========================================================
+
+    let result;
+
+    try {
+      result = JSON.parse(text);
+    } catch {
+      console.error(
+        "La IA no devolvió JSON válido:",
+        text
+      );
+
+      return res.status(502).json({
+        error: "La IA no devolvió JSON válido.",
+        details: text.slice(0, 2000)
+      });
+    }
+
+    // =========================================================
+    // 10. NORMALIZAR RESULTADO
+    // =========================================================
 
     if (
       !result ||
@@ -837,54 +588,241 @@ Devuelve exclusivamente los datos solicitados en el esquema JSON.
     ) {
       return res.status(502).json({
         error:
-          "La IA devolvió una estructura de análisis inesperada."
+          "La IA devolvió una estructura de análisis inválida."
       });
     }
 
-    /*
-     * Garantizamos que los valores económicos calculados
-     * por nuestra aplicación no sean reemplazados por valores
-     * inventados por el modelo.
-     */
+    // =========================================================
+    // 11. ASEGURAR QUE TODOS LOS PRODUCTOS EXISTAN
+    // =========================================================
 
-    for (
-      const product of result.products
-    ) {
-      const original =
-        normalizedProducts.find(
-          p => p.id === product.id
-        );
+    const normalizedProducts = products.map(
+      (original) => {
 
-      if (!original) {
-        continue;
+        const aiProduct =
+          result.products.find(
+            (p) =>
+              Number(p.id) ===
+              Number(original.id)
+          ) ||
+          result.products.find(
+            (p) =>
+              String(
+                p.productName || ""
+              ).trim().toLowerCase() ===
+              original.productName
+                .trim()
+                .toLowerCase()
+          );
+
+        const p = aiProduct || {};
+
+        return {
+          id: original.id,
+
+          productName:
+            p.productName ||
+            original.productName,
+
+          overallScore:
+            Number.isFinite(
+              Number(p.overallScore)
+            )
+              ? Number(p.overallScore)
+              : 0,
+
+          demand:
+            Number.isFinite(Number(p.demand))
+              ? Number(p.demand)
+              : 1,
+
+          competitionOpportunity:
+            Number.isFinite(
+              Number(
+                p.competitionOpportunity
+              )
+            )
+              ? Number(
+                  p.competitionOpportunity
+                )
+              : 1,
+
+          visual:
+            Number.isFinite(Number(p.visual))
+              ? Number(p.visual)
+              : 1,
+
+          differentiation:
+            Number.isFinite(
+              Number(p.differentiation)
+            )
+              ? Number(p.differentiation)
+              : 1,
+
+          impulse:
+            Number.isFinite(Number(p.impulse))
+              ? Number(p.impulse)
+              : 1,
+
+          economicScore:
+            original.economicScore,
+
+          metaScore:
+            Number.isFinite(
+              Number(p.metaScore)
+            )
+              ? Number(p.metaScore)
+              : 0,
+
+          tiktokScore:
+            Number.isFinite(
+              Number(p.tiktokScore)
+            )
+              ? Number(p.tiktokScore)
+              : 0,
+
+          verdict:
+            p.verdict ||
+            "Pendiente de evaluación",
+
+          priority:
+            p.priority ||
+            "",
+
+          recommendedPlatform:
+            p.recommendedPlatform ||
+            "",
+
+          summary:
+            p.summary ||
+            "",
+
+          finalReason:
+            p.finalReason ||
+            p.summary ||
+            "",
+
+          platformReason:
+            p.platformReason ||
+            "",
+
+          strengths:
+            Array.isArray(p.strengths)
+              ? p.strengths
+              : [],
+
+          weaknesses:
+            Array.isArray(p.weaknesses)
+              ? p.weaknesses
+              : [],
+
+          risks:
+            Array.isArray(p.risks)
+              ? p.risks
+              : [],
+
+          angles:
+            Array.isArray(p.angles)
+              ? p.angles
+              : [],
+
+          testPlan:
+            Array.isArray(p.testPlan)
+              ? p.testPlan
+              : [],
+
+          researchNotes:
+            Array.isArray(
+              p.researchNotes
+            )
+              ? p.researchNotes
+              : [],
+
+          margin:
+            original.margin,
+
+          marginPercent:
+            original.marginPercent,
+
+          maxCPA:
+            original.maxCPA,
+
+          targetCPA:
+            original.targetCPA,
+
+          breakEvenROAS:
+            original.breakEvenROAS
+        };
       }
+    );
 
-      product.productName =
-        original.productName;
+    // =========================================================
+    // 12. ORDENAR / IDENTIFICAR GANADORES
+    // =========================================================
 
-      product.margin =
-        original.margin;
+    const sorted =
+      [...normalizedProducts].sort(
+        (a, b) =>
+          b.overallScore -
+          a.overallScore
+      );
 
-      product.marginPercent =
-        original.marginPercent;
+    const overallWinner =
+      sorted[0];
 
-      product.maxCPA =
-        original.maxCPA;
+    const metaWinner =
+      [...normalizedProducts].sort(
+        (a, b) =>
+          b.metaScore -
+          a.metaScore
+      )[0];
 
-      product.targetCPA =
-        original.targetCPA;
+    const tiktokWinner =
+      [...normalizedProducts].sort(
+        (a, b) =>
+          b.tiktokScore -
+          a.tiktokScore
+      )[0];
 
-      product.breakEvenROAS =
-        original.breakEvenROAS;
-    }
+    // =========================================================
+    // 13. DEVOLVER ESTRUCTURA DEFINITIVA
+    // =========================================================
 
-    /*
-     * ============================================================
-     * 11. DEVOLVER RESULTADO
-     * ============================================================
-     */
+    return res.status(200).json({
+      products: normalizedProducts,
 
-    return res.status(200).json(result);
+      overallWinner: {
+        id: overallWinner.id,
+        productName:
+          overallWinner.productName
+      },
+
+      metaWinner: {
+        id: metaWinner.id,
+        productName:
+          metaWinner.productName
+      },
+
+      tiktokWinner: {
+        id: tiktokWinner.id,
+        productName:
+          tiktokWinner.productName
+      },
+
+      recommendation:
+        result.recommendation ||
+        `El producto recomendado para comenzar es ${overallWinner.productName}.`,
+
+      researchNotes:
+        Array.isArray(result.researchNotes)
+          ? result.researchNotes
+          : [],
+
+      sources:
+        Array.isArray(result.sources)
+          ? result.sources
+          : []
+    });
 
   } catch (error) {
 
