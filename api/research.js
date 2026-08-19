@@ -1,6 +1,5 @@
 module.exports = async function handler(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-
   if (req.method !== "POST") return res.status(405).json({ error: "Método no permitido" });
 
   try {
@@ -32,29 +31,18 @@ module.exports = async function handler(req, res) {
       const maxCPA = Math.max(0, margin * (1 - returns / 100));
       const targetCPA = Math.max(0, maxCPA * 0.55);
       const breakEvenROAS = margin > 0 ? salePrice / margin : 0;
-
       return { id: Number(p.id) || i + 1, productName, description, url, cost, shipping, otherCosts, salePrice, returns, margin, marginPercent, maxCPA, targetCPA, breakEvenROAS };
     });
 
     const now = new Date();
     const pad = n => String(n).padStart(2, "0");
     const researchId = `INV-${now.getUTCFullYear()}${pad(now.getUTCMonth()+1)}${pad(now.getUTCDate())}-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
-    const researchVersion = "V3.6";
+    const researchVersion = "V3.7";
 
-    const block = products.map(p => `
-PRODUCTO ${p.id}: ${p.productName}
-Descripción: ${p.description || "No proporcionada"}
-URL PROPORCIONADA POR EL USUARIO: ${p.url || "No proporcionada"}
-Costo: ${p.cost} COP | Envío: ${p.shipping} COP | Otros: ${p.otherCosts} COP | Venta: ${p.salePrice} COP | Devoluciones: ${p.returns}%
-Margen calculado por servidor: ${p.margin.toFixed(0)} COP (${p.marginPercent.toFixed(2)}%)
-CPA máximo calculado por servidor: ${p.maxCPA.toFixed(0)} COP
-CPA objetivo calculado por servidor: ${p.targetCPA.toFixed(0)} COP
-ROAS de equilibrio calculado por servidor: ${p.breakEvenROAS.toFixed(2)}
-`).join("\n");
+    const block = products.map(p => `PRODUCTO ${p.id}: ${p.productName}\nDescripción: ${p.description || "No proporcionada"}\nURL PROPORCIONADA: ${p.url || "No proporcionada"}\nCosto: ${p.cost} COP | Envío: ${p.shipping} COP | Otros: ${p.otherCosts} COP | Venta: ${p.salePrice} COP | Devoluciones: ${p.returns}%\nMargen servidor: ${p.margin.toFixed(0)} COP (${p.marginPercent.toFixed(2)}%) | CPA máximo: ${p.maxCPA.toFixed(0)} | CPA objetivo: ${p.targetCPA.toFixed(0)} | ROAS equilibrio: ${p.breakEvenROAS.toFixed(2)}`).join("\n\n");
 
     const evidenceItem = {
-      type: "object",
-      additionalProperties: false,
+      type: "object", additionalProperties: false,
       properties: {
         claim: { type: "string" },
         type: { type: "string", enum: ["verified", "inference", "recommendation"] },
@@ -65,228 +53,138 @@ ROAS de equilibrio calculado por servidor: ${p.breakEvenROAS.toFixed(2)}
     };
 
     const sourceItem = {
-      type: "object",
-      additionalProperties: false,
+      type: "object", additionalProperties: false,
       properties: {
-        title: { type: "string" },
-        url: { type: "string" },
-        type: { type: "string" },
-        supports: { type: "string" },
-        note: { type: "string" }
+        title: { type: "string" }, url: { type: "string" }, type: { type: "string" }, supports: { type: "string" }, note: { type: "string" }
       },
       required: ["title", "url", "type", "supports", "note"]
     };
 
     const productSchema = {
-      type: "object",
-      additionalProperties: false,
+      type: "object", additionalProperties: false,
       properties: {
-        id: { type: "integer" }, productName: { type: "string" }, overallScore: { type: "number" }, priority: { type: "string" }, verdict: { type: "string" }, confidence: { type: "number" },
-        recommendedPlatform: { type: "string" }, platformReason: { type: "string" }, finalReason: { type: "string" }, summary: { type: "string" },
-        demand: { type: "integer" }, competitionOpportunity: { type: "integer" }, visual: { type: "integer" }, differentiation: { type: "integer" }, impulse: { type: "integer" },
-        economicScore: { type: "number" }, metaScore: { type: "number" }, tiktokScore: { type: "number" },
-        margin: { type: "number" }, marginPercent: { type: "number" }, maxCPA: { type: "number" }, targetCPA: { type: "number" }, breakEvenROAS: { type: "number" },
-        strengths: { type: "array", items: { type: "string" } }, weaknesses: { type: "array", items: { type: "string" } }, risks: { type: "array", items: { type: "string" } }, angles: { type: "array", items: { type: "string" } }, testPlan: { type: "array", items: { type: "string" } },
-        evidence: { type: "array", minItems: 4, maxItems: 6, items: evidenceItem }
+        id:{type:"integer"}, productName:{type:"string"}, overallScore:{type:"number"}, priority:{type:"string"}, verdict:{type:"string"}, confidence:{type:"number"},
+        recommendedPlatform:{type:"string"}, platformReason:{type:"string"}, finalReason:{type:"string"}, summary:{type:"string"},
+        demand:{type:"integer"}, competitionOpportunity:{type:"integer"}, visual:{type:"integer"}, differentiation:{type:"integer"}, impulse:{type:"integer"},
+        economicScore:{type:"number"}, metaScore:{type:"number"}, tiktokScore:{type:"number"},
+        margin:{type:"number"}, marginPercent:{type:"number"}, maxCPA:{type:"number"}, targetCPA:{type:"number"}, breakEvenROAS:{type:"number"},
+        strengths:{type:"array",items:{type:"string",}}, weaknesses:{type:"array",items:{type:"string"}}, risks:{type:"array",items:{type:"string"}}, angles:{type:"array",items:{type:"string"}}, testPlan:{type:"array",items:{type:"string"}},
+        evidence:{type:"array",minItems:3,maxItems:4,items:evidenceItem}
       },
-      required: ["id","productName","overallScore","priority","verdict","confidence","recommendedPlatform","platformReason","finalReason","summary","demand","competitionOpportunity","visual","differentiation","impulse","economicScore","metaScore","tiktokScore","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan","evidence"]
+      required:["id","productName","overallScore","priority","verdict","confidence","recommendedPlatform","platformReason","finalReason","summary","demand","competitionOpportunity","visual","differentiation","impulse","economicScore","metaScore","tiktokScore","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan","evidence"]
     };
 
     const winnerSchema = {
-      type: "object", additionalProperties: false,
-      properties: {
-        id: { type: "integer" }, productName: { type: "string" }, overallScore: { type: "number" }, priority: { type: "string" }, recommendedPlatform: { type: "string" }, platformReason: { type: "string" }, finalReason: { type: "string" }, summary: { type: "string" }, margin: { type: "number" }, marginPercent: { type: "number" }, maxCPA: { type: "number" }, targetCPA: { type: "number" }, breakEvenROAS: { type: "number" }, strengths: { type: "array", items: { type: "string" } }, weaknesses: { type: "array", items: { type: "string" } }, risks: { type: "array", items: { type: "string" } }, angles: { type: "array", items: { type: "string" } }, testPlan: { type: "array", items: { type: "string" } }
+      type:"object", additionalProperties:false,
+      properties:{
+        id:{type:"integer"},productName:{type:"string"},overallScore:{type:"number"},priority:{type:"string"},recommendedPlatform:{type:"string"},platformReason:{type:"string"},finalReason:{type:"string"},summary:{type:"string"},margin:{type:"number"},marginPercent:{type:"number"},maxCPA:{type:"number"},targetCPA:{type:"number"},breakEvenROAS:{type:"number"},strengths:{type:"array",items:{type:"string"}},weaknesses:{type:"array",items:{type:"string"}},risks:{type:"array",items:{type:"string"}},angles:{type:"array",items:{type:"string"}},testPlan:{type:"array",items:{type:"string"}}
       },
-      required: ["id","productName","overallScore","priority","recommendedPlatform","platformReason","finalReason","summary","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan"]
+      required:["id","productName","overallScore","priority","recommendedPlatform","platformReason","finalReason","summary","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan"]
     };
 
     const schema = {
-      type: "object", additionalProperties: false,
-      properties: {
-        products: { type: "array", minItems: 1, maxItems: 5, items: productSchema },
-        overallWinner: winnerSchema,
-        metaWinner: { type: "object", additionalProperties: false, properties: { id: { type: "integer" }, productName: { type: "string" }, metaScore: { type: "number" }, platformReason: { type: "string" } }, required: ["id","productName","metaScore","platformReason"] },
-        tiktokWinner: { type: "object", additionalProperties: false, properties: { id: { type: "integer" }, productName: { type: "string" }, tiktokScore: { type: "number" }, platformReason: { type: "string" } }, required: ["id","productName","tiktokScore","platformReason"] },
-        recommendation: { type: "string" }, researchNotes: { type: "array", items: { type: "string" } }, sources: { type: "array", items: sourceItem }
+      type:"object", additionalProperties:false,
+      properties:{
+        products:{type:"array",minItems:1,maxItems:5,items:productSchema},
+        overallWinner:winnerSchema,
+        metaWinner:{type:"object",additionalProperties:false,properties:{id:{type:"integer"},productName:{type:"string"},metaScore:{type:"number"},platformReason:{type:"string"}},required:["id","productName","metaScore","platformReason"]},
+        tiktokWinner:{type:"object",additionalProperties:false,properties:{id:{type:"integer"},productName:{type:"string"},tiktokScore:{type:"number"},platformReason:{type:"string"}},required:["id","productName","tiktokScore","platformReason"]},
+        recommendation:{type:"string"},researchNotes:{type:"array",items:{type:"string"}},sources:{type:"array",items:sourceItem}
       },
-      required: ["products","overallWinner","metaWinner","tiktokWinner","recommendation","researchNotes","sources"]
+      required:["products","overallWinner","metaWinner","tiktokWinner","recommendation","researchNotes","sources"]
     };
 
     const productCount = products.length;
-    const prompt = `Eres un analista profesional de ecommerce, investigación de mercado y publicidad digital para Colombia.
+    const prompt = `Analiza ecommerce y publicidad digital para Colombia. Compara ${productCount} producto(s) y decide ganador general, Meta Ads y TikTok Ads.
 
-OBJETIVO: Compara TODOS los productos recibidos, de 1 a 5, con exactamente los mismos criterios. Determina ganador general, ganador Meta Ads y ganador TikTok Ads.
+INVESTIGACIÓN WEB: obligatoria pero RÁPIDA. Haz como máximo 2 búsquedas web por producto y usa contexto bajo. Prioriza una fuente oficial/regulatoria si aplica y una fuente de mercado/oferta. No hagas búsquedas redundantes. Si la evidencia no existe, declara la incertidumbre. La URL del usuario sirve para verificar el producto, precio o características, no para demostrar demanda.
 
-INVESTIGACIÓN WEB OBLIGATORIA PERO EFICIENTE: usa búsqueda web actual. Para cada producto realiza una investigación focalizada, no exhaustiva: prioriza 2 o 3 fuentes de alto valor que permitan verificar mercado/oferta y cumplimiento. No hagas búsquedas redundantes ni persigas cada variante del nombre del producto. Prioriza fuentes oficiales/regulatorias cuando sean pertinentes, y luego una o dos fuentes de mercado o publicidad relevantes. Para ${productCount} productos, mantén el alcance compacto para que la investigación pueda completarse dentro del tiempo de una función serverless.
+TRAZABILIDAD: no inventes URLs, ventas, CTR, CPA históricos, ROAS históricos, volúmenes ni cifras de mercado. Cada producto debe tener 3-4 evidence: verified, inference o recommendation. sourceUrls solo puede usar URLs realmente encontradas o URLs proporcionadas por el usuario. sources debe contener esas mismas URLs con título, tipo, supports y note.
 
-INVESTIGA, cuando sea posible: demanda/interés, competencia, precios/ofertas, presencia en ecommerce, potencial visual, diferenciación, compra por impulso, riesgos y restricciones publicitarias. No necesitas documentar cada subtema si no existe evidencia suficiente; es preferible una conclusión prudente y trazable a una afirmación extensa sin respaldo.
+CRITERIOS: demand 0-5; competitionOpportunity 0-5; visual 0-5; differentiation 0-5; impulse 0-5; economicScore/metaScore/tiktokScore/overallScore 0-100. Ponderación general: demanda 20%, competencia 15%, visual 15%, diferenciación 10%, impulso 10%, economía 30%. 80+ prioritario; 70-79 testear; 60-69 precaución; 50-59 débil; <50 no prioritario.
 
-TRAZABILIDAD OBLIGATORIA:
-- No inventes URLs, ventas, CTR, CPA históricos, ROAS históricos, volúmenes de ventas ni cifras de mercado.
-- Cada producto debe tener entre 4 y 6 elementos de evidence, priorizando calidad sobre cantidad.
-- Cada evidence debe indicar type: verified = hecho respaldado por fuente; inference = conclusión razonable derivada de evidencia; recommendation = recomendación estratégica y NO hecho.
-- Cada evidence debe incluir claim, evidence y sourceUrls.
-- sourceUrls debe contener solo URLs que también estén en sources o la URL proporcionada por el usuario.
-- Si algo no pudo verificarse, dilo en evidence en vez de presentarlo como hecho.
-- Una URL del usuario sirve para verificar la página/producto, precio, presentación o características, pero no constituye por sí sola evidencia de demanda de mercado.
+ECONOMÍA: usa exactamente los valores calculados por servidor para margen, marginPercent, maxCPA, targetCPA y breakEvenROAS.
 
-FUENTES:
-- Incluye SOLO URLs reales obtenidas mediante búsqueda web o proporcionadas por el usuario.
-- Deduplica URLs.
-- Cada fuente debe tener title, url, type, supports y note.
-- Tipos de fuente: official, regulatory, marketplace, advertising, social, news, research, product, user_provided u other.
-- Las fuentes regulatorias y de políticas deben usarse cuando realmente respalden la afirmación correspondiente.
-
-RESEARCH NOTES: resume únicamente los hallazgos decisivos. No repitas toda la evidence. Añade una referencia breve del tipo "Fuente: <título>" cuando corresponda.
-
-PUNTUACIONES: demand 0-5; competitionOpportunity 0-5 (5=oportunidad competitiva favorable); visual 0-5; differentiation 0-5; impulse 0-5; economicScore 0-100; metaScore 0-100; tiktokScore 0-100; overallScore 0-100.
-PONDERACIÓN GENERAL: demanda 20%, oportunidad competitiva 15%, visual 15%, diferenciación 10%, impulso 10%, economía 30%.
-INTERPRETACIÓN: 80-100 prioritario; 70-79 vale la pena testear; 60-69 test con precaución; 50-59 débil; 0-49 no prioritario.
-ECONOMÍA: los valores de margen, margen porcentual, CPA máximo, CPA objetivo y ROAS de equilibrio calculados por el servidor son los valores oficiales. No los sustituyas.
-No conviertas inferencias publicitarias en afirmaciones clínicas. Para suplementos y productos de salud usa lenguaje de bienestar y cumplimiento cuando corresponda.
-
-LONGITUD DE RESPUESTA: sé preciso y compacto. strengths, weaknesses, risks, angles y testPlan deben contener solo los puntos más útiles para la decisión, evitando párrafos repetitivos.
+SALUD: evita afirmaciones clínicas no verificadas; usa lenguaje de bienestar y cumplimiento. strengths, weaknesses, risks, angles y testPlan: máximo 3 puntos útiles cada uno y frases compactas.
 
 PRODUCTOS:
 ${block}
 
-Devuelve ÚNICAMENTE JSON válido según el esquema. No agregues markdown ni texto adicional.`;
+Devuelve únicamente JSON válido según el esquema. Sin markdown.`,
 
     const controller = new AbortController();
-    const timeoutMs = Number(process.env.RESEARCH_TIMEOUT_MS || 57000);
-    const timeout = setTimeout(() => controller.abort(), Math.min(Math.max(timeoutMs, 30000), 59000));
+    const timeoutMs = Math.min(Math.max(Number(process.env.RESEARCH_TIMEOUT_MS || 55000), 30000), 59000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     let response;
     try {
       response = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL || "gpt-5",
-          tools: [{ type: "web_search" }],
-          input: prompt,
-          max_output_tokens: 10000,
-          text: { format: { type: "json_schema", name: "product_comparison_traceable_v36", strict: true, schema } }
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},
+        body:JSON.stringify({
+          model:"gpt-5.4-mini",
+          tools:[{type:"web_search",search_context_size:"low"}],
+          input:prompt,
+          max_output_tokens:7000,
+          reasoning:{effort:"low"},
+          text:{format:{type:"json_schema",name:"product_comparison_traceable_v37",strict:true,schema}}
         }),
-        signal: controller.signal
+        signal:controller.signal
       });
     } catch (fetchError) {
-      if (fetchError?.name === "AbortError") {
-        return res.status(504).json({ error: "La investigación superó el tiempo disponible. La consulta se optimizó para reducir búsquedas y tamaño de respuesta; vuelve a intentarlo. Si ocurre con 4–5 productos, prueba primero con 3 para confirmar estabilidad.", researchId, researchVersion });
-      }
+      if (fetchError?.name === "AbortError") return res.status(504).json({error:"La investigación superó el tiempo disponible. Se agotó el tiempo de la consulta web. Intenta nuevamente; si persiste incluso con 1 producto, revisaremos la infraestructura de ejecución.",researchId,researchVersion});
       throw fetchError;
-    } finally {
-      clearTimeout(timeout);
-    }
+    } finally { clearTimeout(timeout); }
 
     const raw = await response.text();
     if (!response.ok) {
-      let apiError = {};
-      try { apiError = JSON.parse(raw); } catch {}
-      console.error("OpenAI error:", raw.slice(0, 3000));
-      return res.status(502).json({ error: "OpenAI devolvió un error.", status: response.status, details: apiError?.error?.message || raw.slice(0, 1200), researchId, researchVersion });
+      let apiError={}; try{apiError=JSON.parse(raw);}catch{}
+      console.error("OpenAI error:",raw.slice(0,3000));
+      return res.status(502).json({error:"OpenAI devolvió un error.",status:response.status,details:apiError?.error?.message||raw.slice(0,1200),researchId,researchVersion});
     }
 
-    let apiData;
-    try { apiData = JSON.parse(raw); } catch { return res.status(502).json({ error: "OpenAI devolvió una respuesta inesperada.", researchId, researchVersion }); }
+    let apiData; try{apiData=JSON.parse(raw);}catch{return res.status(502).json({error:"OpenAI devolvió una respuesta inesperada.",researchId,researchVersion});}
 
-    const webCitations = [];
-    const seenUrls = new Set();
-    const addCitation = (url, title = "") => {
-      const clean = String(url || "").trim();
-      if (!/^https?:\/\//i.test(clean) || seenUrls.has(clean)) return;
-      seenUrls.add(clean);
-      webCitations.push({ title: String(title || clean).trim(), url: clean });
-    };
-
-    const walk = value => {
-      if (!value || typeof value !== "object") return;
-      if (Array.isArray(value)) { value.forEach(walk); return; }
-      if (value.type === "url_citation" || value.type === "url_citation_detail") addCitation(value.url, value.title || value.name || "");
-      for (const [key, child] of Object.entries(value)) if (["annotations","content","output","url_citation"].includes(key)) walk(child);
-    };
+    const webCitations=[]; const seenUrls=new Set();
+    const addCitation=(url,title="")=>{const clean=String(url||"").trim();if(!/^https?:\/\//i.test(clean)||seenUrls.has(clean))return;seenUrls.add(clean);webCitations.push({title:String(title||clean).trim(),url:clean});};
+    const walk=value=>{if(!value||typeof value!=="object")return;if(Array.isArray(value)){value.forEach(walk);return;}if(value.type==="url_citation"||value.type==="url_citation_detail")addCitation(value.url,value.title||value.name||"");for(const [key,child] of Object.entries(value))if(["annotations","content","output","url_citation"].includes(key))walk(child);};
     walk(apiData.output);
 
-    let text = typeof apiData.output_text === "string" ? apiData.output_text : "";
-    if (!text && Array.isArray(apiData.output)) for (const item of apiData.output) for (const c of item.content || []) if (typeof c?.text === "string") text += c.text;
-    text = String(text).trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
-    if (!text) return res.status(502).json({ error: "OpenAI no devolvió contenido de análisis.", researchId, researchVersion });
+    let text=typeof apiData.output_text==="string"?apiData.output_text:"";
+    if(!text&&Array.isArray(apiData.output))for(const item of apiData.output)for(const c of item.content||[])if(typeof c?.text==="string")text+=c.text;
+    text=String(text).trim().replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```$/i,"").trim();
+    if(!text)return res.status(502).json({error:"OpenAI no devolvió contenido de análisis.",researchId,researchVersion});
 
-    let result;
-    try {
-      result = JSON.parse(text);
-    } catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      console.error("OpenAI text:", text.slice(0, 5000));
-      return res.status(502).json({ error: "La IA no devolvió JSON válido.", researchId, researchVersion, details: text.slice(0, 3000) });
-    }
+    let result;try{result=JSON.parse(text);}catch(parseError){console.error("JSON parse error:",parseError);console.error("OpenAI text:",text.slice(0,5000));return res.status(502).json({error:"La IA no devolvió JSON válido.",researchId,researchVersion,details:text.slice(0,3000)});}
 
-    result.products = (Array.isArray(result.products) ? result.products : []).map((r, i) => {
-      const original = products.find(p => Number(p.id) === Number(r.id)) || products[i];
-      if (!original) return r;
-      return { ...r, id: original.id, productName: String(r.productName || original.productName), margin: original.margin, marginPercent: original.marginPercent, maxCPA: original.maxCPA, targetCPA: original.targetCPA, breakEvenROAS: original.breakEvenROAS, evidence: Array.isArray(r.evidence) ? r.evidence : [] };
-    });
+    result.products=(Array.isArray(result.products)?result.products:[]).map((r,i)=>{const original=products.find(p=>Number(p.id)===Number(r.id))||products[i];if(!original)return r;return {...r,id:original.id,productName:String(r.productName||original.productName),margin:original.margin,marginPercent:original.marginPercent,maxCPA:original.maxCPA,targetCPA:original.targetCPA,breakEvenROAS:original.breakEvenROAS,evidence:Array.isArray(r.evidence)?r.evidence:[]};});
 
-    const sorted = result.products.slice().sort((a,b) => (Number(b.overallScore)||0) - (Number(a.overallScore)||0));
-    result.overallWinner = sorted[0] || null;
-    const meta = result.products.slice().sort((a,b) => (Number(b.metaScore)||0) - (Number(a.metaScore)||0))[0];
-    const tik = result.products.slice().sort((a,b) => (Number(b.tiktokScore)||0) - (Number(a.tiktokScore)||0))[0];
-    result.metaWinner = meta ? { id: meta.id, productName: meta.productName, metaScore: meta.metaScore, platformReason: meta.platformReason || "" } : null;
-    result.tiktokWinner = tik ? { id: tik.id, productName: tik.productName, tiktokScore: tik.tiktokScore, platformReason: tik.platformReason || "" } : null;
+    const sorted=result.products.slice().sort((a,b)=>(Number(b.overallScore)||0)-(Number(a.overallScore)||0));
+    result.overallWinner=sorted[0]||null;
+    const meta=result.products.slice().sort((a,b)=>(Number(b.metaScore)||0)-(Number(a.metaScore)||0))[0];
+    const tik=result.products.slice().sort((a,b)=>(Number(b.tiktokScore)||0)-(Number(a.tiktokScore)||0))[0];
+    result.metaWinner=meta?{id:meta.id,productName:meta.productName,metaScore:meta.metaScore,platformReason:meta.platformReason||""}:null;
+    result.tiktokWinner=tik?{id:tik.id,productName:tik.productName,tiktokScore:tik.tiktokScore,platformReason:tik.platformReason||""}:null;
 
-    const userSources = products.filter(p => p.url && /^https?:\/\//i.test(p.url)).map(p => ({ title: `${p.productName} — URL proporcionada por el usuario`, url: p.url, type: "user_provided", supports: "Página proporcionada para el análisis del producto.", note: "Fuente proporcionada por el usuario. Puede servir para verificar precio, presentación y características, pero no prueba por sí sola la demanda del mercado." }));
-    const sourceMap = new Map();
+    const userSources=products.filter(p=>p.url&&/^https?:\/\//i.test(p.url)).map(p=>({title:`${p.productName} — URL proporcionada por el usuario`,url:p.url,type:"user_provided",supports:"Página proporcionada para el análisis del producto.",note:"Fuente proporcionada por el usuario; puede verificar precio, presentación y características, pero no demuestra por sí sola la demanda."}));
+    const sourceMap=new Map();
+    webCitations.forEach(c=>sourceMap.set(c.url,{title:c.title,url:c.url,type:"web_search",supports:"Fuente capturada directamente por búsqueda web.",note:"URL capturada de una cita de búsqueda web."}));
+    (Array.isArray(result.sources)?result.sources:[]).forEach(s=>{const url=String(s?.url||"").trim();if(!/^https?:\/\//i.test(url)||sourceMap.has(url))return;sourceMap.set(url,{title:String(s.title||url),url,type:String(s.type||"other"),supports:String(s.supports||""),note:String(s.note||"Fuente declarada por el análisis.")});});
+    userSources.forEach(s=>{if(!sourceMap.has(s.url))sourceMap.set(s.url,s);});
+    result.sources=Array.from(sourceMap.values()).slice(0,20);
+    const knownUrls=new Set(result.sources.map(s=>s.url));
+    const typeLabel={verified:"DATO VERIFICABLE",inference:"INFERENCIA",recommendation:"RECOMENDACIÓN"};
+    const evidenceNotes=[];
 
-    webCitations.forEach(c => sourceMap.set(c.url, { title: c.title, url: c.url, type: "web_search", supports: "Fuente citada directamente por la búsqueda web.", note: "URL capturada de una cita de búsqueda web." }));
-    (Array.isArray(result.sources) ? result.sources : []).forEach(s => {
-      const url = String(s?.url || "").trim();
-      if (!/^https?:\/\//i.test(url) || sourceMap.has(url)) return;
-      sourceMap.set(url, { title: String(s.title || url), url, type: String(s.type || "other"), supports: String(s.supports || ""), note: String(s.note || "Fuente declarada por el análisis.") });
-    });
-    userSources.forEach(s => { if (!sourceMap.has(s.url)) sourceMap.set(s.url, s); });
+    result.products=result.products.map(p=>{const evidence=(Array.isArray(p.evidence)?p.evidence:[]).map(e=>{const sourceUrls=Array.isArray(e?.sourceUrls)?e.sourceUrls.map(u=>String(u).trim()).filter(u=>knownUrls.has(u)):[];const type=["verified","inference","recommendation"].includes(e?.type)?e.type:"inference";const clean={claim:String(e?.claim||"").trim(),type,evidence:String(e?.evidence||"").trim(),sourceUrls};if(clean.claim&&clean.evidence){const sourceTitles=sourceUrls.map(u=>sourceMap.get(u)?.title||u);const sourceText=sourceTitles.length?` Fuente: ${sourceTitles.join("; ")}.`:" Fuente: no verificada en una URL capturada.";evidenceNotes.push(`${p.productName} — ${typeLabel[type]}: ${clean.claim}. ${clean.evidence}.${sourceText}`);}return clean;});return {...p,evidence};});
 
-    result.sources = Array.from(sourceMap.values()).slice(0, 30);
-    const knownUrls = new Set(result.sources.map(s => s.url));
-    const typeLabel = { verified: "DATO VERIFICABLE", inference: "INFERENCIA", recommendation: "RECOMENDACIÓN" };
-    const evidenceNotes = [];
-
-    result.products = result.products.map(p => {
-      const evidence = (Array.isArray(p.evidence) ? p.evidence : []).map(e => {
-        const sourceUrls = Array.isArray(e?.sourceUrls) ? e.sourceUrls.map(u => String(u).trim()).filter(u => knownUrls.has(u)) : [];
-        const type = ["verified","inference","recommendation"].includes(e?.type) ? e.type : "inference";
-        const clean = { claim: String(e?.claim || "").trim(), type, evidence: String(e?.evidence || "").trim(), sourceUrls };
-        if (clean.claim && clean.evidence) {
-          const sourceTitles = sourceUrls.map(u => sourceMap.get(u)?.title || u);
-          const sourceText = sourceTitles.length ? ` Fuente: ${sourceTitles.join("; ")}.` : " Fuente: no verificada en una URL capturada.";
-          evidenceNotes.push(`${p.productName} — ${typeLabel[type]}: ${clean.claim}. ${clean.evidence}.${sourceText}`);
-        }
-        return clean;
-      });
-      return { ...p, evidence };
-    });
-
-    const existingNotes = Array.isArray(result.researchNotes) ? result.researchNotes.map(x => String(x).trim()).filter(Boolean) : [];
-    result.researchNotes = [...evidenceNotes, ...existingNotes].slice(0, 40);
-
-    result.traceability = {
-      researchId,
-      researchVersion,
-      generatedAt: now.toISOString(),
-      productsAnalyzed: products.length,
-      webSearchUsed: true,
-      webCitationsCaptured: webCitations.length,
-      verifiedSourceCount: result.sources.length,
-      evidenceCount: result.products.reduce((n,p) => n + (Array.isArray(p.evidence) ? p.evidence.length : 0), 0),
-      sourcePolicy: "Solo se aceptan URLs capturadas de web_search o proporcionadas por el usuario; no se inventan URLs.",
-      evidencePolicy: "Cada hallazgo se clasifica como dato verificable, inferencia o recomendación y conserva sus URLs asociadas cuando existen."
-    };
-
-    result.researchId = researchId;
-    result.researchVersion = researchVersion;
-
+    const existingNotes=Array.isArray(result.researchNotes)?result.researchNotes.map(x=>String(x).trim()).filter(Boolean):[];
+    result.researchNotes=[...evidenceNotes,...existingNotes].slice(0,30);
+    result.traceability={researchId,researchVersion,generatedAt:now.toISOString(),productsAnalyzed:products.length,webSearchUsed:true,webCitationsCaptured:webCitations.length,verifiedSourceCount:result.sources.length,evidenceCount:result.products.reduce((n,p)=>n+(Array.isArray(p.evidence)?p.evidence.length:0),0),sourcePolicy:"Solo se aceptan URLs capturadas de web_search o proporcionadas por el usuario; no se inventan URLs.",evidencePolicy:"Cada hallazgo se clasifica como dato verificable, inferencia o recomendación y conserva sus URLs asociadas cuando existen."};
+    result.researchId=researchId; result.researchVersion=researchVersion;
     return res.status(200).json(result);
-  } catch (e) {
-    console.error("Research API error:", e);
-    return res.status(500).json({ error: e.message || "Error interno del servidor." });
+  } catch(e) {
+    console.error("Research API error:",e);
+    return res.status(500).json({error:e.message||"Error interno del servidor."});
   }
 };
