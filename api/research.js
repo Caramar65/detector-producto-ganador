@@ -39,7 +39,7 @@ module.exports = async function handler(req, res) {
     const now = new Date();
     const pad = n => String(n).padStart(2, "0");
     const researchId = `INV-${now.getUTCFullYear()}${pad(now.getUTCMonth()+1)}${pad(now.getUTCDate())}-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
-    const researchVersion = "V3.4";
+    const researchVersion = "V3.5";
 
     const block = products.map(p => `
 PRODUCTO ${p.id}: ${p.productName}
@@ -52,120 +52,159 @@ CPA objetivo calculado por servidor: ${p.targetCPA.toFixed(0)} COP
 ROAS de equilibrio calculado por servidor: ${p.breakEvenROAS.toFixed(2)}
 `).join("\n");
 
+    const evidenceItem = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        claim: { type: "string" },
+        type: { type: "string", enum: ["verified", "inference", "recommendation"] },
+        evidence: { type: "string" },
+        sourceUrls: { type: "array", items: { type: "string" } }
+      },
+      required: ["claim", "type", "evidence", "sourceUrls"]
+    };
+
+    const sourceItem = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        url: { type: "string" },
+        type: { type: "string" },
+        supports: { type: "string" },
+        note: { type: "string" }
+      },
+      required: ["title", "url", "type", "supports", "note"]
+    };
+
+    const productSchema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        id: { type: "integer" }, productName: { type: "string" }, overallScore: { type: "number" }, priority: { type: "string" }, verdict: { type: "string" }, confidence: { type: "number" },
+        recommendedPlatform: { type: "string" }, platformReason: { type: "string" }, finalReason: { type: "string" }, summary: { type: "string" },
+        demand: { type: "integer" }, competitionOpportunity: { type: "integer" }, visual: { type: "integer" }, differentiation: { type: "integer" }, impulse: { type: "integer" },
+        economicScore: { type: "number" }, metaScore: { type: "number" }, tiktokScore: { type: "number" },
+        margin: { type: "number" }, marginPercent: { type: "number" }, maxCPA: { type: "number" }, targetCPA: { type: "number" }, breakEvenROAS: { type: "number" },
+        strengths: { type: "array", items: { type: "string" } }, weaknesses: { type: "array", items: { type: "string" } }, risks: { type: "array", items: { type: "string" } }, angles: { type: "array", items: { type: "string" } }, testPlan: { type: "array", items: { type: "string" } },
+        evidence: { type: "array", minItems: 4, maxItems: 10, items: evidenceItem }
+      },
+      required: ["id","productName","overallScore","priority","verdict","confidence","recommendedPlatform","platformReason","finalReason","summary","demand","competitionOpportunity","visual","differentiation","impulse","economicScore","metaScore","tiktokScore","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan","evidence"]
+    };
+
+    const winnerSchema = {
+      type: "object", additionalProperties: false,
+      properties: {
+        id: { type: "integer" }, productName: { type: "string" }, overallScore: { type: "number" }, priority: { type: "string" }, recommendedPlatform: { type: "string" }, platformReason: { type: "string" }, finalReason: { type: "string" }, summary: { type: "string" }, margin: { type: "number" }, marginPercent: { type: "number" }, maxCPA: { type: "number" }, targetCPA: { type: "number" }, breakEvenROAS: { type: "number" }, strengths: { type: "array", items: { type: "string" } }, weaknesses: { type: "array", items: { type: "string" } }, risks: { type: "array", items: { type: "string" } }, angles: { type: "array", items: { type: "string" } }, testPlan: { type: "array", items: { type: "string" } }
+      },
+      required: ["id","productName","overallScore","priority","recommendedPlatform","platformReason","finalReason","summary","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan"]
+    };
+
+    const schema = {
+      type: "object", additionalProperties: false,
+      properties: {
+        products: { type: "array", minItems: 1, maxItems: 5, items: productSchema },
+        overallWinner: winnerSchema,
+        metaWinner: { type: "object", additionalProperties: false, properties: { id: { type: "integer" }, productName: { type: "string" }, metaScore: { type: "number" }, platformReason: { type: "string" } }, required: ["id","productName","metaScore","platformReason"] },
+        tiktokWinner: { type: "object", additionalProperties: false, properties: { id: { type: "integer" }, productName: { type: "string" }, tiktokScore: { type: "number" }, platformReason: { type: "string" } }, required: ["id","productName","tiktokScore","platformReason"] },
+        recommendation: { type: "string" }, researchNotes: { type: "array", items: { type: "string" } }, sources: { type: "array", items: sourceItem }
+      },
+      required: ["products","overallWinner","metaWinner","tiktokWinner","recommendation","researchNotes","sources"]
+    };
+
     const prompt = `Eres un analista profesional de ecommerce, investigación de mercado y publicidad digital para Colombia.
 
-OBJETIVO: Compara TODOS los productos recibidos, desde 1 hasta 5, usando exactamente los mismos criterios. Determina ganador general, ganador Meta Ads y ganador TikTok Ads.
+OBJETIVO: Compara TODOS los productos recibidos, de 1 a 5, con exactamente los mismos criterios. Determina ganador general, ganador Meta Ads y ganador TikTok Ads.
 
-INVESTIGACIÓN WEB: Usa búsqueda web para obtener evidencia actual cuando esté disponible. Investiga para cada producto demanda/interés, competencia, precios, presencia en ecommerce, contenido/anuncios visibles, potencial visual, diferenciación, compra por impulso, riesgos y restricciones publicitarias. Para salud, suplementos o dispositivos de bienestar, prioriza fuentes oficiales pertinentes como INVIMA, Meta y TikTok cuando existan.
+INVESTIGACIÓN WEB OBLIGATORIA: usa búsqueda web actual. Investiga demanda/interés, competencia, precios/ofertas, presencia en ecommerce, contenido/anuncios visibles, potencial visual, diferenciación, compra por impulso, riesgos y restricciones publicitarias. Para salud, suplementos o dispositivos de bienestar, prioriza fuentes oficiales pertinentes como INVIMA, Meta y TikTok cuando existan.
 
-TRAZABILIDAD OBLIGATORIA: No inventes fuentes, URLs, ventas, CTR, CPA históricos, ROAS históricos, volúmenes de ventas ni cifras de mercado.
+TRAZABILIDAD OBLIGATORIA:
+- No inventes URLs, ventas, CTR, CPA históricos, ROAS históricos, volúmenes de ventas ni cifras de mercado.
+- Cada producto debe tener entre 4 y 10 elementos de evidence.
+- Cada evidence debe indicar type: verified = hecho respaldado por fuente; inference = conclusión razonable derivada de evidencia; recommendation = recomendación estratégica y NO hecho.
+- Cada evidence debe incluir claim, evidence y sourceUrls.
+- sourceUrls debe contener solo URLs que también estén en sources o la URL proporcionada por el usuario.
+- Si algo no pudo verificarse, dilo en evidence en vez de presentarlo como hecho.
+- Una URL del usuario sirve para verificar la página/producto, precio, presentación o características, pero no constituye por sí sola evidencia de demanda de mercado.
 
-Clasifica cada evidencia como verified (respaldada por una fuente identificable), inference (inferencia razonable derivada de evidencia) o recommendation (recomendación estratégica, no hecho).
+FUENTES:
+- Incluye SOLO URLs reales obtenidas mediante búsqueda web o proporcionadas por el usuario.
+- Deduplica URLs.
+- Cada fuente debe tener title, url, type, supports y note.
+- Tipos de fuente: official, regulatory, marketplace, advertising, social, news, research, product, user_provided u other.
+- Las fuentes regulatorias y de políticas deben usarse cuando realmente respalden la afirmación correspondiente.
 
-En sources incluye SOLO URLs realmente obtenidas por búsqueda web o URLs proporcionadas por el usuario. Una URL del usuario NO equivale a una fuente web verificada. Si una URL del usuario no pudo ser consultada, marca type=user_provided y dilo en note.
-
-Cada fuente debe tener title, url, type, supports y note. Tipos permitidos: product, official, regulatory, marketplace, advertising, social, news, research, other, user_provided.
-
-Para cada producto devuelve evidence con claim, type y sourceUrls. sourceUrls debe contener únicamente URLs que estén también en sources o sean la URL proporcionada para ese producto.
+RESEARCH NOTES: resume los hallazgos más importantes y añade al final de cada nota relevante una referencia del tipo "Fuente: <título>". No uses notas como sustituto de evidence.
 
 PUNTUACIONES: demand 0-5; competitionOpportunity 0-5 (5=oportunidad competitiva favorable); visual 0-5; differentiation 0-5; impulse 0-5; economicScore 0-100; metaScore 0-100; tiktokScore 0-100; overallScore 0-100.
-
-PONDERACIÓN GENERAL: Demanda 20%, oportunidad competitiva 15%, visual 15%, diferenciación 10%, impulso 10%, economía 30%.
-
+PONDERACIÓN GENERAL: demanda 20%, oportunidad competitiva 15%, visual 15%, diferenciación 10%, impulso 10%, economía 30%.
 INTERPRETACIÓN: 80-100 prioritario; 70-79 vale la pena testear; 60-69 test con precaución; 50-59 débil; 0-49 no prioritario.
-
-ECONOMÍA: Los valores calculados por el servidor de margen, margen porcentual, CPA máximo, CPA objetivo y ROAS de equilibrio son los valores oficiales. No los sustituyas.
-
-REDACCIÓN: El informe debe permitir tomar una decisión comercial. Explica brevemente por qué gana cada producto. No conviertas inferencias publicitarias en afirmaciones clínicas.
+ECONOMÍA: los valores de margen, margen porcentual, CPA máximo, CPA objetivo y ROAS de equilibrio calculados por el servidor son los valores oficiales. No los sustituyas.
+No conviertas inferencias publicitarias en afirmaciones clínicas. Para suplementos y productos de salud usa lenguaje de bienestar y cumplimiento cuando corresponda.
 
 PRODUCTOS:
 ${block}
 
-Devuelve ÚNICAMENTE JSON válido, sin markdown ni texto adicional.
+Devuelve ÚNICAMENTE JSON válido según el esquema. No agregues markdown ni texto adicional.`;
 
-ESTRUCTURA EXACTA:
-{
-  "products": [{
-    "id": 1, "productName": "", "overallScore": 0, "priority": "", "verdict": "", "confidence": 0,
-    "recommendedPlatform": "", "platformReason": "", "finalReason": "", "summary": "",
-    "demand": 0, "competitionOpportunity": 0, "visual": 0, "differentiation": 0, "impulse": 0,
-    "economicScore": 0, "metaScore": 0, "tiktokScore": 0,
-    "margin": 0, "marginPercent": 0, "maxCPA": 0, "targetCPA": 0, "breakEvenROAS": 0,
-    "strengths": [], "weaknesses": [], "risks": [], "angles": [], "testPlan": [],
-    "evidence": [{"claim":"","type":"verified","sourceUrls":[]}]
-  }],
-  "overallWinner": {"id":0,"productName":"","overallScore":0,"priority":"","recommendedPlatform":"","platformReason":"","finalReason":"","summary":"","margin":0,"marginPercent":0,"maxCPA":0,"targetCPA":0,"breakEvenROAS":0,"strengths":[],"weaknesses":[],"risks":[],"angles":[],"testPlan":[]},
-  "metaWinner": {"id":0,"productName":"","metaScore":0,"platformReason":""},
-  "tiktokWinner": {"id":0,"productName":"","tiktokScore":0,"platformReason":""},
-  "recommendation":"",
-  "researchNotes":[],
-  "sources":[{"title":"","url":"","type":"","supports":"","note":""}]
-}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
 
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-      body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-5", tools: [{ type: "web_search" }], input: prompt })
-    });
+    let response;
+    try {
+      response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-5", tools: [{ type: "web_search" }], input: prompt, text: { format: { type: "json_schema", name: "product_comparison_traceable_v35", strict: true, schema } } }),
+        signal: controller.signal
+      });
+    } catch (fetchError) {
+      if (fetchError?.name === "AbortError") return res.status(504).json({ error: "La investigación tardó demasiado. Intenta nuevamente con menos productos o vuelve a intentarlo en unos segundos.", researchId });
+      throw fetchError;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const raw = await response.text();
-    if (!response.ok) return res.status(502).json({ error: "OpenAI devolvió un error.", status: response.status, details: raw.slice(0, 2000), researchId });
+    if (!response.ok) {
+      let apiError = {};
+      try { apiError = JSON.parse(raw); } catch {}
+      console.error("OpenAI error:", raw.slice(0, 3000));
+      return res.status(502).json({ error: "OpenAI devolvió un error.", status: response.status, details: apiError?.error?.message || raw.slice(0, 1200), researchId });
+    }
 
     let apiData;
-    try { apiData = JSON.parse(raw); }
-    catch { return res.status(502).json({ error: "OpenAI devolvió una respuesta inesperada.", details: raw.slice(0, 2000), researchId }); }
+    try { apiData = JSON.parse(raw); } catch { return res.status(502).json({ error: "OpenAI devolvió una respuesta inesperada.", researchId }); }
 
-    // Capturamos las citas URL que realmente aparecen en la respuesta de web_search.
     const webCitations = [];
     const seenUrls = new Set();
     const addCitation = (url, title = "") => {
-      if (!url || !/^https?:\/\//i.test(String(url))) return;
-      const clean = String(url).trim();
-      if (seenUrls.has(clean)) return;
+      const clean = String(url || "").trim();
+      if (!/^https?:\/\//i.test(clean) || seenUrls.has(clean)) return;
       seenUrls.add(clean);
-      webCitations.push({ title: String(title || clean), url: clean });
+      webCitations.push({ title: String(title || clean).trim(), url: clean });
     };
 
     const walk = value => {
       if (!value || typeof value !== "object") return;
       if (Array.isArray(value)) { value.forEach(walk); return; }
       if (value.type === "url_citation" || value.type === "url_citation_detail") addCitation(value.url, value.title || value.name || "");
-      for (const [key, child] of Object.entries(value)) {
-        if (key === "annotations" || key === "content" || key === "output") walk(child);
-      }
+      for (const [key, child] of Object.entries(value)) if (["annotations","content","output","url_citation"].includes(key)) walk(child);
     };
     walk(apiData.output);
 
     let text = typeof apiData.output_text === "string" ? apiData.output_text : "";
-    if (!text && Array.isArray(apiData.output)) {
-      for (const item of apiData.output) for (const c of item.content || []) if (typeof c?.text === "string") text += c.text;
-    }
-
+    if (!text && Array.isArray(apiData.output)) for (const item of apiData.output) for (const c of item.content || []) if (typeof c?.text === "string") text += c.text;
     text = String(text).trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
     if (!text) return res.status(502).json({ error: "OpenAI no devolvió contenido de análisis.", researchId });
 
     let result;
-    try { result = JSON.parse(text); }
-    catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      console.error("OpenAI text:", text.slice(0, 5000));
-      return res.status(502).json({ error: "La IA no devolvió JSON válido.", researchId, details: text.slice(0, 3000) });
-    }
+    try { result = JSON.parse(text); } catch (parseError) { console.error("JSON parse error:", parseError); console.error("OpenAI text:", text.slice(0, 5000)); return res.status(502).json({ error: "La IA no devolvió JSON válido.", researchId, details: text.slice(0, 3000) }); }
 
     result.products = (Array.isArray(result.products) ? result.products : []).map((r, i) => {
       const original = products.find(p => Number(p.id) === Number(r.id)) || products[i];
       if (!original) return r;
-      return {
-        ...r,
-        id: original.id,
-        productName: String(r.productName || original.productName),
-        margin: original.margin,
-        marginPercent: original.marginPercent,
-        maxCPA: original.maxCPA,
-        targetCPA: original.targetCPA,
-        breakEvenROAS: original.breakEvenROAS,
-        evidence: Array.isArray(r.evidence) ? r.evidence : []
-      };
+      return { ...r, id: original.id, productName: String(r.productName || original.productName), margin: original.margin, marginPercent: original.marginPercent, maxCPA: original.maxCPA, targetCPA: original.targetCPA, breakEvenROAS: original.breakEvenROAS, evidence: Array.isArray(r.evidence) ? r.evidence : [] };
     });
 
     const sorted = result.products.slice().sort((a,b) => (Number(b.overallScore)||0) - (Number(a.overallScore)||0));
@@ -175,51 +214,39 @@ ESTRUCTURA EXACTA:
     result.metaWinner = meta ? { id: meta.id, productName: meta.productName, metaScore: meta.metaScore, platformReason: meta.platformReason || "" } : null;
     result.tiktokWinner = tik ? { id: tik.id, productName: tik.productName, tiktokScore: tik.tiktokScore, platformReason: tik.platformReason || "" } : null;
 
-    const userSources = products.filter(p => p.url && /^https?:\/\//i.test(p.url)).map(p => ({
-      title: `${p.productName} — URL proporcionada por el usuario`,
-      url: p.url,
-      type: "user_provided",
-      supports: "Página proporcionada para el análisis del producto.",
-      note: "URL introducida por el usuario. No implica que su contenido haya sido verificado independientemente."
-    }));
-
-    const modelSources = Array.isArray(result.sources) ? result.sources : [];
+    const userSources = products.filter(p => p.url && /^https?:\/\//i.test(p.url)).map(p => ({ title: `${p.productName} — URL proporcionada por el usuario`, url: p.url, type: "user_provided", supports: "Página proporcionada para el análisis del producto.", note: "Fuente proporcionada por el usuario. Puede servir para verificar precio, presentación y características, pero no prueba por sí sola la demanda del mercado." }));
     const sourceMap = new Map();
 
-    webCitations.map(c => ({
-      title: c.title,
-      url: c.url,
-      type: "web_search",
-      supports: "Fuente citada por la herramienta web_search.",
-      note: "URL extraída de una cita de búsqueda web de OpenAI."
-    })).forEach(s => sourceMap.set(s.url, s));
-
-    modelSources.filter(s => s && /^https?:\/\//i.test(String(s.url || ""))).forEach(s => {
-      const url = String(s.url);
-      if (!sourceMap.has(url)) sourceMap.set(url, {
-        title: String(s.title || url),
-        url,
-        type: String(s.type || "other"),
-        supports: String(s.supports || ""),
-        note: String(s.note || "Fuente declarada por el análisis. Esta URL debe coincidir con una cita web o una URL proporcionada por el usuario.")
-      });
+    webCitations.forEach(c => sourceMap.set(c.url, { title: c.title, url: c.url, type: "web_search", supports: "Fuente citada directamente por la búsqueda web.", note: "URL capturada de una cita de búsqueda web." }));
+    (Array.isArray(result.sources) ? result.sources : []).forEach(s => {
+      const url = String(s?.url || "").trim();
+      if (!/^https?:\/\//i.test(url) || sourceMap.has(url)) return;
+      sourceMap.set(url, { title: String(s.title || url), url, type: String(s.type || "other"), supports: String(s.supports || ""), note: String(s.note || "Fuente declarada por el análisis.") });
     });
-
-    userSources.forEach(s => {
-      if (!sourceMap.has(s.url)) sourceMap.set(s.url, s);
-    });
+    userSources.forEach(s => { if (!sourceMap.has(s.url)) sourceMap.set(s.url, s); });
 
     result.sources = Array.from(sourceMap.values()).slice(0, 30);
-
     const knownUrls = new Set(result.sources.map(s => s.url));
-    result.products = result.products.map(p => ({
-      ...p,
-      evidence: (Array.isArray(p.evidence) ? p.evidence : []).map(e => ({
-        claim: String(e?.claim || ""),
-        type: ["verified", "inference", "recommendation"].includes(e?.type) ? e.type : "inference",
-        sourceUrls: Array.isArray(e?.sourceUrls) ? e.sourceUrls.filter(u => knownUrls.has(String(u))) : []
-      }))
-    }));
+    const typeLabel = { verified: "DATO VERIFICABLE", inference: "INFERENCIA", recommendation: "RECOMENDACIÓN" };
+    const evidenceNotes = [];
+
+    result.products = result.products.map(p => {
+      const evidence = (Array.isArray(p.evidence) ? p.evidence : []).map(e => {
+        const sourceUrls = Array.isArray(e?.sourceUrls) ? e.sourceUrls.map(u => String(u).trim()).filter(u => knownUrls.has(u)) : [];
+        const type = ["verified","inference","recommendation"].includes(e?.type) ? e.type : "inference";
+        const clean = { claim: String(e?.claim || "").trim(), type, evidence: String(e?.evidence || "").trim(), sourceUrls };
+        if (clean.claim && clean.evidence) {
+          const sourceTitles = sourceUrls.map(u => sourceMap.get(u)?.title || u);
+          const sourceText = sourceTitles.length ? ` Fuente: ${sourceTitles.join("; ")}.` : " Fuente: no verificada en una URL capturada.";
+          evidenceNotes.push(`${p.productName} — ${typeLabel[type]}: ${clean.claim}. ${clean.evidence}.${sourceText}`);
+        }
+        return clean;
+      });
+      return { ...p, evidence };
+    });
+
+    const existingNotes = Array.isArray(result.researchNotes) ? result.researchNotes.map(x => String(x).trim()).filter(Boolean) : [];
+    result.researchNotes = [...evidenceNotes, ...existingNotes].slice(0, 50);
 
     result.traceability = {
       researchId,
@@ -228,9 +255,10 @@ ESTRUCTURA EXACTA:
       productsAnalyzed: products.length,
       webSearchUsed: true,
       webCitationsCaptured: webCitations.length,
-      webSearchSourceCount: result.sources.filter(s => s.type === "web_search").length,
-      userProvidedSourceCount: result.sources.filter(s => s.type === "user_provided").length,
-      sourcePolicy: "Solo se aceptan URLs capturadas de web_search o proporcionadas por el usuario; no se inventan URLs."
+      verifiedSourceCount: result.sources.length,
+      evidenceCount: result.products.reduce((n,p) => n + (Array.isArray(p.evidence) ? p.evidence.length : 0), 0),
+      sourcePolicy: "Solo se aceptan URLs capturadas de web_search o proporcionadas por el usuario; no se inventan URLs.",
+      evidencePolicy: "Cada hallazgo se clasifica como dato verificable, inferencia o recomendación y conserva sus URLs asociadas cuando existen."
     };
 
     result.researchId = researchId;
