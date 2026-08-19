@@ -1,0 +1,91 @@
+name: Apply app enhancements
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch-index:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='/* DP_GANADOR_V38_ENHANCEMENTS */'
+          if marker in s:
+              print('Enhancements already installed')
+              raise SystemExit(0)
+          patch=r'''/* DP_GANADOR_V38_ENHANCEMENTS */
+          (function(){
+            const STYLE=`<style id="dp-v38-style">.dp-tools{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.dp-tools button{padding:10px 13px}.dp-history{background:#eefaf1;color:#176b35;border:1px solid #c9ecd4;padding:10px;border-radius:10px;font-size:12px}.dp-evidence{background:#f8f8fc;border-left:3px solid #5b45ea;padding:8px 10px;margin:7px 0;font-size:12px}.dp-evidence b{display:block;margin-bottom:3px}</style>`;
+            document.head.insertAdjacentHTML('beforeend',STYLE);
+            let lastData=null,lastProducts=null,lastCreatedAt=null;
+            const originalRender=window.render;
+            if(typeof originalRender==='function'){
+              window.render=function(data,inputProducts){lastData=data;lastProducts=inputProducts;lastCreatedAt=new Date().toISOString();return originalRender(data,inputProducts)};
+            }
+            function tools(){
+              if(document.getElementById('dpTools')) return;
+              const report=document.getElementById('report'); if(!report) return;
+              report.insertAdjacentHTML('beforeend',`<div id="dpTools" class="dp-tools"><button class="primary" id="dpSave">💾 GUARDAR</button><button class="ghost" id="dpDownload">📄 DESCARGAR INFORME</button><button class="ghost" id="dpEmail">📧 ENVIAR POR EMAIL</button></div>`);
+              document.getElementById('dpSave').onclick=save;
+              document.getElementById('dpDownload').onclick=download;
+              document.getElementById('dpEmail').onclick=email;
+            }
+            function save(){
+              if(!lastData){return status('Primero realiza una investigación.',true)}
+              const all=JSON.parse(localStorage.getItem('dpganador_history')||'[]');
+              all.unshift({id:'research_'+Date.now(),createdAt:lastCreatedAt||new Date().toISOString(),products:lastProducts,data:lastData});
+              localStorage.setItem('dpganador_history',JSON.stringify(all.slice(0,20)));
+              history(); status('💾 Investigación guardada en este navegador.');
+            }
+            function download(){
+              if(!lastData){return status('Primero realiza una investigación.',true)}
+              const w=lastData.overallWinner||lastData.products?.[0]||{};
+              const text=['DETECTOR DE PRODUCTO GANADOR','',`Ganador: ${w.productName||''}`,`Score: ${w.overallScore||0}/100`,`Plataforma: ${w.recommendedPlatform||''}`,'',`Recomendación: ${lastData.recommendation||''}`,'','FUENTES',...(lastData.sources||[]).map(x=>`${x.title||'Fuente'}: ${x.url}`)].join('\n');
+              const blob=new Blob([text],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`investigacion-producto-ganador-${new Date().toISOString().slice(0,10)}.txt`;a.click();URL.revokeObjectURL(a.href);status('📄 Informe descargado.');
+            }
+            function email(){
+              if(!lastData){return status('Primero realiza una investigación.',true)}
+              const w=lastData.overallWinner||lastData.products?.[0]||{};
+              const subject=`Investigación Producto Ganador — ${w.productName||'Resultado'}`;
+              const body=`Ganador: ${w.productName||''}\nScore: ${w.overallScore||0}/100\nPlataforma: ${w.recommendedPlatform||''}\n\n${lastData.recommendation||''}\n\nFuentes:\n${(lastData.sources||[]).map(x=>x.url).join('\n')}`;
+              location.href=`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            }
+            function history(){
+              let box=document.getElementById('dpHistory');
+              if(!box){box=document.createElement('div');box.id='dpHistory';box.className='card';box.style.marginTop='16px';document.querySelector('main').appendChild(box)}
+              const all=JSON.parse(localStorage.getItem('dpganador_history')||'[]');
+              if(!all.length){box.style.display='none';return} box.style.display='block';
+              box.innerHTML='<h2>💾 Investigaciones guardadas</h2><p class="muted">Guardadas localmente en este navegador.</p>'+all.map(x=>{const w=x.data?.overallWinner||x.data?.products?.[0]||{};return `<p><b>${String(w.productName||'Investigación')}</b> — ${Number(w.overallScore)||0}/100 <button class="ghost" data-open="${x.id}">Abrir</button></p>`}).join('');
+              box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const x=all.find(y=>y.id===b.dataset.open);if(!x)return;lastData=x.data;lastProducts=x.products;window.render(x.data,x.products);status('📂 Investigación cargada.');window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})});
+            }
+            function reset(){
+              if(!confirm('¿Quieres iniciar una nueva investigación? Las investigaciones guardadas no se borrarán.')) return;
+              for(let i=1;i<=5;i++){['n','d','u','c','o','p'].forEach(x=>{const e=document.getElementById(x+i);if(e)e.value=''});if(document.getElementById('s'+i))document.getElementById('s'+i).value='0';if(document.getElementById('r'+i))document.getElementById('r'+i).value='5'}
+              const r=document.getElementById('report');if(r){r.innerHTML='';r.style.display='none'}const e=document.getElementById('empty');if(e)e.style.display='block';if(typeof window.updateProductCount==='function')window.updateProductCount();status('↺ Nueva investigación lista.');
+            }
+            function boot(){
+              const demo=document.getElementById('demo');if(demo&&!document.getElementById('dpReset')){const b=document.createElement('button');b.id='dpReset';b.className='danger';b.textContent='↺ NUEVA INVESTIGACIÓN';b.onclick=reset;demo.parentNode.appendChild(b)}
+              history();
+              const report=document.getElementById('report');if(report&&report.style.display==='block')tools();
+              const mo=new MutationObserver(()=>{if(document.getElementById('report')?.style.display==='block')tools()});mo.observe(document.getElementById('report'),{childList:true,subtree:true});
+            }
+            setTimeout(boot,0);
+          })();
+          '''
+          s=s.replace('</script>','\n'+patch+'\n</script>',1)
+          p.write_text(s,encoding='utf-8')
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add save download email and reset workflow"
+          git push
