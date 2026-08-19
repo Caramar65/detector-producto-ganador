@@ -39,7 +39,7 @@ module.exports = async function handler(req, res) {
     const now = new Date();
     const pad = n => String(n).padStart(2, "0");
     const researchId = `INV-${now.getUTCFullYear()}${pad(now.getUTCMonth()+1)}${pad(now.getUTCDate())}-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
-    const researchVersion = "V3.5";
+    const researchVersion = "V3.6";
 
     const block = products.map(p => `
 PRODUCTO ${p.id}: ${p.productName}
@@ -87,7 +87,7 @@ ROAS de equilibrio calculado por servidor: ${p.breakEvenROAS.toFixed(2)}
         economicScore: { type: "number" }, metaScore: { type: "number" }, tiktokScore: { type: "number" },
         margin: { type: "number" }, marginPercent: { type: "number" }, maxCPA: { type: "number" }, targetCPA: { type: "number" }, breakEvenROAS: { type: "number" },
         strengths: { type: "array", items: { type: "string" } }, weaknesses: { type: "array", items: { type: "string" } }, risks: { type: "array", items: { type: "string" } }, angles: { type: "array", items: { type: "string" } }, testPlan: { type: "array", items: { type: "string" } },
-        evidence: { type: "array", minItems: 4, maxItems: 10, items: evidenceItem }
+        evidence: { type: "array", minItems: 4, maxItems: 6, items: evidenceItem }
       },
       required: ["id","productName","overallScore","priority","verdict","confidence","recommendedPlatform","platformReason","finalReason","summary","demand","competitionOpportunity","visual","differentiation","impulse","economicScore","metaScore","tiktokScore","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan","evidence"]
     };
@@ -112,15 +112,18 @@ ROAS de equilibrio calculado por servidor: ${p.breakEvenROAS.toFixed(2)}
       required: ["products","overallWinner","metaWinner","tiktokWinner","recommendation","researchNotes","sources"]
     };
 
+    const productCount = products.length;
     const prompt = `Eres un analista profesional de ecommerce, investigación de mercado y publicidad digital para Colombia.
 
 OBJETIVO: Compara TODOS los productos recibidos, de 1 a 5, con exactamente los mismos criterios. Determina ganador general, ganador Meta Ads y ganador TikTok Ads.
 
-INVESTIGACIÓN WEB OBLIGATORIA: usa búsqueda web actual. Investiga demanda/interés, competencia, precios/ofertas, presencia en ecommerce, contenido/anuncios visibles, potencial visual, diferenciación, compra por impulso, riesgos y restricciones publicitarias. Para salud, suplementos o dispositivos de bienestar, prioriza fuentes oficiales pertinentes como INVIMA, Meta y TikTok cuando existan.
+INVESTIGACIÓN WEB OBLIGATORIA PERO EFICIENTE: usa búsqueda web actual. Para cada producto realiza una investigación focalizada, no exhaustiva: prioriza 2 o 3 fuentes de alto valor que permitan verificar mercado/oferta y cumplimiento. No hagas búsquedas redundantes ni persigas cada variante del nombre del producto. Prioriza fuentes oficiales/regulatorias cuando sean pertinentes, y luego una o dos fuentes de mercado o publicidad relevantes. Para ${productCount} productos, mantén el alcance compacto para que la investigación pueda completarse dentro del tiempo de una función serverless.
+
+INVESTIGA, cuando sea posible: demanda/interés, competencia, precios/ofertas, presencia en ecommerce, potencial visual, diferenciación, compra por impulso, riesgos y restricciones publicitarias. No necesitas documentar cada subtema si no existe evidencia suficiente; es preferible una conclusión prudente y trazable a una afirmación extensa sin respaldo.
 
 TRAZABILIDAD OBLIGATORIA:
 - No inventes URLs, ventas, CTR, CPA históricos, ROAS históricos, volúmenes de ventas ni cifras de mercado.
-- Cada producto debe tener entre 4 y 10 elementos de evidence.
+- Cada producto debe tener entre 4 y 6 elementos de evidence, priorizando calidad sobre cantidad.
 - Cada evidence debe indicar type: verified = hecho respaldado por fuente; inference = conclusión razonable derivada de evidencia; recommendation = recomendación estratégica y NO hecho.
 - Cada evidence debe incluir claim, evidence y sourceUrls.
 - sourceUrls debe contener solo URLs que también estén en sources o la URL proporcionada por el usuario.
@@ -134,7 +137,7 @@ FUENTES:
 - Tipos de fuente: official, regulatory, marketplace, advertising, social, news, research, product, user_provided u other.
 - Las fuentes regulatorias y de políticas deben usarse cuando realmente respalden la afirmación correspondiente.
 
-RESEARCH NOTES: resume los hallazgos más importantes y añade al final de cada nota relevante una referencia del tipo "Fuente: <título>". No uses notas como sustituto de evidence.
+RESEARCH NOTES: resume únicamente los hallazgos decisivos. No repitas toda la evidence. Añade una referencia breve del tipo "Fuente: <título>" cuando corresponda.
 
 PUNTUACIONES: demand 0-5; competitionOpportunity 0-5 (5=oportunidad competitiva favorable); visual 0-5; differentiation 0-5; impulse 0-5; economicScore 0-100; metaScore 0-100; tiktokScore 0-100; overallScore 0-100.
 PONDERACIÓN GENERAL: demanda 20%, oportunidad competitiva 15%, visual 15%, diferenciación 10%, impulso 10%, economía 30%.
@@ -142,24 +145,35 @@ INTERPRETACIÓN: 80-100 prioritario; 70-79 vale la pena testear; 60-69 test con 
 ECONOMÍA: los valores de margen, margen porcentual, CPA máximo, CPA objetivo y ROAS de equilibrio calculados por el servidor son los valores oficiales. No los sustituyas.
 No conviertas inferencias publicitarias en afirmaciones clínicas. Para suplementos y productos de salud usa lenguaje de bienestar y cumplimiento cuando corresponda.
 
+LONGITUD DE RESPUESTA: sé preciso y compacto. strengths, weaknesses, risks, angles y testPlan deben contener solo los puntos más útiles para la decisión, evitando párrafos repetitivos.
+
 PRODUCTOS:
 ${block}
 
 Devuelve ÚNICAMENTE JSON válido según el esquema. No agregues markdown ni texto adicional.`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 55000);
+    const timeoutMs = Number(process.env.RESEARCH_TIMEOUT_MS || 57000);
+    const timeout = setTimeout(() => controller.abort(), Math.min(Math.max(timeoutMs, 30000), 59000));
 
     let response;
     try {
       response = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-5", tools: [{ type: "web_search" }], input: prompt, text: { format: { type: "json_schema", name: "product_comparison_traceable_v35", strict: true, schema } } }),
+        body: JSON.stringify({
+          model: process.env.OPENAI_MODEL || "gpt-5",
+          tools: [{ type: "web_search" }],
+          input: prompt,
+          max_output_tokens: 10000,
+          text: { format: { type: "json_schema", name: "product_comparison_traceable_v36", strict: true, schema } }
+        }),
         signal: controller.signal
       });
     } catch (fetchError) {
-      if (fetchError?.name === "AbortError") return res.status(504).json({ error: "La investigación tardó demasiado. Intenta nuevamente con menos productos o vuelve a intentarlo en unos segundos.", researchId });
+      if (fetchError?.name === "AbortError") {
+        return res.status(504).json({ error: "La investigación superó el tiempo disponible. La consulta se optimizó para reducir búsquedas y tamaño de respuesta; vuelve a intentarlo. Si ocurre con 4–5 productos, prueba primero con 3 para confirmar estabilidad.", researchId, researchVersion });
+      }
       throw fetchError;
     } finally {
       clearTimeout(timeout);
@@ -170,11 +184,11 @@ Devuelve ÚNICAMENTE JSON válido según el esquema. No agregues markdown ni tex
       let apiError = {};
       try { apiError = JSON.parse(raw); } catch {}
       console.error("OpenAI error:", raw.slice(0, 3000));
-      return res.status(502).json({ error: "OpenAI devolvió un error.", status: response.status, details: apiError?.error?.message || raw.slice(0, 1200), researchId });
+      return res.status(502).json({ error: "OpenAI devolvió un error.", status: response.status, details: apiError?.error?.message || raw.slice(0, 1200), researchId, researchVersion });
     }
 
     let apiData;
-    try { apiData = JSON.parse(raw); } catch { return res.status(502).json({ error: "OpenAI devolvió una respuesta inesperada.", researchId }); }
+    try { apiData = JSON.parse(raw); } catch { return res.status(502).json({ error: "OpenAI devolvió una respuesta inesperada.", researchId, researchVersion }); }
 
     const webCitations = [];
     const seenUrls = new Set();
@@ -196,10 +210,16 @@ Devuelve ÚNICAMENTE JSON válido según el esquema. No agregues markdown ni tex
     let text = typeof apiData.output_text === "string" ? apiData.output_text : "";
     if (!text && Array.isArray(apiData.output)) for (const item of apiData.output) for (const c of item.content || []) if (typeof c?.text === "string") text += c.text;
     text = String(text).trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
-    if (!text) return res.status(502).json({ error: "OpenAI no devolvió contenido de análisis.", researchId });
+    if (!text) return res.status(502).json({ error: "OpenAI no devolvió contenido de análisis.", researchId, researchVersion });
 
     let result;
-    try { result = JSON.parse(text); } catch (parseError) { console.error("JSON parse error:", parseError); console.error("OpenAI text:", text.slice(0, 5000)); return res.status(502).json({ error: "La IA no devolvió JSON válido.", researchId, details: text.slice(0, 3000) }); }
+    try {
+      result = JSON.parse(text);
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      console.error("OpenAI text:", text.slice(0, 5000));
+      return res.status(502).json({ error: "La IA no devolvió JSON válido.", researchId, researchVersion, details: text.slice(0, 3000) });
+    }
 
     result.products = (Array.isArray(result.products) ? result.products : []).map((r, i) => {
       const original = products.find(p => Number(p.id) === Number(r.id)) || products[i];
@@ -246,7 +266,7 @@ Devuelve ÚNICAMENTE JSON válido según el esquema. No agregues markdown ni tex
     });
 
     const existingNotes = Array.isArray(result.researchNotes) ? result.researchNotes.map(x => String(x).trim()).filter(Boolean) : [];
-    result.researchNotes = [...evidenceNotes, ...existingNotes].slice(0, 50);
+    result.researchNotes = [...evidenceNotes, ...existingNotes].slice(0, 40);
 
     result.traceability = {
       researchId,
