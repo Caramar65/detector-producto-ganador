@@ -9,3 +9,5 @@ Después de agregar/modificar variables de entorno debes redeployar.
 
 ## Próximas versiones
 V3.1: análisis por lotes. V3.2: plan y generación de creativos. V4: importar resultados reales de Meta/TikTok y aprender de los tests.
+
+<!-- Redeploy check: 2026-08-21 -->
