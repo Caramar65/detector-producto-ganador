@@ -3,6 +3,7 @@
   const SUPABASE_URL='https://qpvtygafwobaxltdntdg.supabase.co';
   const SUPABASE_KEY='sb_publishable_cjJpoVZoghi9x1bzI5H2ng_Zh_GNxx5';
   const STORE_KEY='dpg_saved_research_v39';
+  const PENDING_KEY='dpg_pending_research_v39';
   let sb=null, session=null, lastResearch=null;
 
   function esc(v){return String(v==null?'':v).replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));}
@@ -17,6 +18,12 @@
     if(error){console.warn('profile',error);return false;}
     return true;
   }
+  function loadPending(){
+    if(lastResearch)return lastResearch;
+    try{const raw=localStorage.getItem(PENDING_KEY);if(raw)lastResearch=JSON.parse(raw);}catch(e){console.warn('pending load',e);}
+    return lastResearch;
+  }
+  function clearPending(){try{localStorage.removeItem(PENDING_KEY);}catch(e){}}
   async function init(){
     await loadScript();
     sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
@@ -36,7 +43,7 @@
     addAccountUI();
     patchAnalytics();
     event('app_opened',{page:location.pathname});
-    if(session){await ensureProfile();await syncCloudHistory();}
+    if(session){await ensureProfile();await syncCloudHistory();await autoSavePending();}
   }
   function addAccountUI(){
     const box=document.createElement('div');box.id='dpg-account';box.style.cssText='position:fixed;top:14px;right:14px;z-index:9999;font-family:Arial,sans-serif';
@@ -51,7 +58,7 @@
       msg.textContent='Enviando enlace de acceso...';msg.style.color='#667085';
       const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname,data:{full_name:name}}});
       if(error){msg.textContent='No pudimos enviar el enlace: '+error.message;msg.style.color='#b42318';return;}
-      msg.innerHTML='✅ Enlace enviado. Revisa tu correo y ábrelo para activar tu acceso. <b>No cierres esta página</b>; cuando regreses, la investigación pendiente se guardará automáticamente.';msg.style.color='#087443';
+      msg.innerHTML='✅ Enlace enviado. Revisa tu correo y ábrelo para activar tu acceso. <b>Puedes dejar esta página abierta</b>; la investigación pendiente quedó guardada temporalmente y se intentará guardar automáticamente al regresar.';msg.style.color='#087443';
     };
   }
   function updateAccount(){
@@ -79,9 +86,11 @@
     return {ok:true,researchId};
   }
   async function autoSavePending(){
-    if(!session?.user||!lastResearch)return;
-    const ok=await saveCloud({researchId:lastResearch.researchId,title:lastResearch.overallWinner?.productName||'Investigación',productCount:lastResearch.products?.length||1,report:lastResearch});
-    if(ok.ok){
+    const pending=loadPending();
+    if(!session?.user||!pending)return;
+    const result=await saveCloud({researchId:pending.researchId,title:pending.overallWinner?.productName||'Investigación',productCount:pending.products?.length||1,report:pending});
+    if(result.ok){
+      clearPending();
       const modal=document.getElementById('dpg-auth-modal');if(modal)modal.style.display='none';
       showStatus('✅ Investigación guardada correctamente en Supabase y asociada a tu cuenta.','success');
     }
@@ -107,14 +116,18 @@
       const response=await originalFetch(input,init);
       try{
         const clone=response.clone(),data=await clone.json();
-        if(response.ok){lastResearch=data;window.__DPG_LAST_RESEARCH__=data;await event('analysis_completed',{product_count:data?.products?.length||null,research_id:data?.researchId||null});}
-        else await event('analysis_failed',{status:response.status,error:data?.error||'unknown'});
+        if(response.ok){
+          lastResearch=data;
+          window.__DPG_LAST_RESEARCH__=data;
+          try{localStorage.setItem(PENDING_KEY,JSON.stringify(data));}catch(e){console.warn('pending save',e);}
+          await event('analysis_completed',{product_count:data?.products?.length||null,research_id:data?.researchId||null});
+        }else await event('analysis_failed',{status:response.status,error:data?.error||'unknown'});
       }catch{}
       return response;
     };
     const demo=document.getElementById('demo');if(demo)demo.addEventListener('click',()=>event('demo_clicked',{product_count:5}));
     const history=document.getElementById('showHistory');if(history)history.addEventListener('click',()=>event('history_opened'));
-    const newBtn=document.getElementById('newResearch');if(newBtn)newBtn.addEventListener('click',()=>event('new_research'));
+    const newBtn=document.getElementById('newResearch');if(newBtn)newBtn.addEventListener('click',()=>{clearPending();event('new_research');});
     const originalSet=Storage.prototype.setItem;
     Storage.prototype.setItem=function(key,value){
       const result=originalSet.apply(this,arguments);
@@ -139,9 +152,10 @@
           event('save_requires_login');
           return;
         }
-        if(lastResearch){
-          const result=await saveCloud({researchId:lastResearch.researchId,title:lastResearch.overallWinner?.productName||'Investigación',productCount:lastResearch.products?.length||1,report:lastResearch});
-          if(result.ok)showStatus('✅ Investigación guardada correctamente en Supabase. Puedes verla en Investigaciones guardadas.','success');
+        const pending=loadPending();
+        if(pending){
+          const result=await saveCloud({researchId:pending.researchId,title:pending.overallWinner?.productName||'Investigación',productCount:pending.products?.length||1,report:pending});
+          if(result.ok){clearPending();showStatus('✅ Investigación guardada correctamente en Supabase. Puedes verla en Investigaciones guardadas.','success');}
           else showStatus('❌ No se pudo guardar la investigación. Revisa la conexión con Supabase.','error');
         }else showStatus('⚠️ No hay una investigación activa para guardar.','error');
       }
