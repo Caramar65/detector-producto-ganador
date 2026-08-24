@@ -42,6 +42,7 @@
     return lastResearch;
   }
   function clearPending(){try{localStorage.removeItem(PENDING_KEY);}catch{};lastResearch=null;}
+  function getSafeRedirect(){return APP_URL+'/?auth=1';}
   async function init(){
     await loadScript();
     sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
@@ -49,10 +50,7 @@
     session=r.data.session||null;
     sb.auth.onAuthStateChange((_e,s)=>{
       session=s||null; updateAccount();
-      if(session)setTimeout(async()=>{
-        await ensureProfile(); await syncCloudHistory();
-        if(hasSaveIntent()) await autoSavePending();
-      },150);
+      if(session)setTimeout(async()=>{await ensureProfile();await syncCloudHistory();if(hasSaveIntent())await autoSavePending();},150);
     });
     addAccountUI();
     patchAnalytics();
@@ -71,101 +69,58 @@
       const name=document.getElementById('dpg-name').value.trim(),email=document.getElementById('dpg-email').value.trim(),msg=document.getElementById('dpg-auth-msg');
       if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){msg.textContent='Escribe un nombre y un correo válido.';msg.style.color='#b42318';return;}
       setPendingName(name);setSaveIntent(true);msg.textContent='Enviando enlace de acceso...';msg.style.color='#667085';
-      const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:APP_URL+'/?auth=1',shouldCreateUser:true}});
+      const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:getSafeRedirect(),shouldCreateUser:true}});
       if(error){msg.textContent='No pudimos enviar el enlace: '+error.message;msg.style.color='#b42318';return;}
       msg.innerHTML='✅ Enlace enviado. Revisa tu correo y ábrelo para activar tu acceso. Después volverás automáticamente a la app y la investigación se guardará en tu cuenta.';msg.style.color='#087443';
     };
   }
   function updateAccount(){
     const box=document.getElementById('dpg-account');if(!box)return;
-    if(session){
-      const name=esc(session.user.user_metadata?.full_name||getPendingName()||session.user.email||'Cuenta');
-      box.innerHTML='<button id="dpg-account-btn" style="border:0;border-radius:999px;padding:8px 12px;background:white;color:#4937c4;box-shadow:0 4px 16px #0002;font-weight:700">👤 '+name+' · Salir</button>';
-      document.getElementById('dpg-account-btn').onclick=()=>sb.auth.signOut();
-    }else{
-      box.innerHTML='<button id="dpg-account-btn" style="border:0;border-radius:999px;padding:8px 12px;background:white;color:#4937c4;box-shadow:0 4px 16px #0002;font-weight:700">🔐 Guardar mis investigaciones</button>';
-      document.getElementById('dpg-account-btn').onclick=()=>openAuthModal('account');
-    }
+    if(session){const name=esc(session.user.user_metadata?.full_name||getPendingName()||session.user.email||'Cuenta');box.innerHTML='<button id="dpg-account-btn" style="border:0;border-radius:999px;padding:8px 12px;background:white;color:#4937c4;box-shadow:0 4px 16px #0002;font-weight:700">👤 '+name+' · Salir</button>';document.getElementById('dpg-account-btn').onclick=()=>sb.auth.signOut();}
+    else{box.innerHTML='<button id="dpg-account-btn" style="border:0;border-radius:999px;padding:8px 12px;background:white;color:#4937c4;box-shadow:0 4px 16px #0002;font-weight:700">🔐 Guardar mis investigaciones</button>';document.getElementById('dpg-account-btn').onclick=()=>openAuthModal('account');}
   }
   async function event(name,extra={}){try{await sb.from('usage_events').insert({user_id:session?.user?.id||null,event_name:name,product_count:extra.product_count||null,metadata:extra});}catch(e){console.warn('analytics',e);}}
   async function saveCloud(item){
     if(!session?.user)return {ok:false,reason:'login'};
-    const report=item.report||item.result||item;
-    const title=item.title||report?.overallWinner?.productName||'Investigación';
-    const productCount=Number(item.productCount||report?.products?.length||1);
-    const researchId=item.researchId||report?.researchId||('LOCAL-'+Date.now());
-    const payload={user_id:session.user.id,research_id:researchId,title,product_count:productCount,winner_product:report?.overallWinner?.productName||item.winner_product||null,report};
+    const report=item.report||item.result||item,title=item.title||report?.overallWinner?.productName||'Investigación';
+    const productCount=Number(item.productCount||report?.products?.length||1),researchId=item.researchId||report?.researchId||('LOCAL-'+Date.now());
+    const payload={user_id:session.user.id,research_id:researchId,title,product_count:Math.max(1,Math.min(5,productCount)),winner_product:report?.overallWinner?.productName||item.winner_product||null,report};
     const {error}=await sb.from('research_reports').upsert(payload,{onConflict:'user_id,research_id'});
     if(error){console.warn('saveCloud',error);return {ok:false,reason:'database',error};}
-    await event('report_saved',{product_count:productCount,research_id:researchId});
-    return {ok:true,researchId};
+    await event('report_saved',{product_count:productCount,research_id:researchId});return {ok:true,researchId};
   }
   async function autoSavePending(){
-    const pending=loadPending();
-    if(!session?.user||!pending)return;
+    const pending=loadPending();if(!session?.user||!pending)return;
     const result=await saveCloud({researchId:pending.researchId,title:pending.overallWinner?.productName||'Investigación',productCount:pending.products?.length||1,report:pending});
-    if(result.ok){
-      clearPending();clearSaveIntent();closeAuthModal();
-      showStatus('✅ Investigación guardada correctamente en la nube y asociada a tu cuenta.','success');
-      const h=document.getElementById('showHistory');if(h)h.click();
-    }else showStatus('❌ Tu acceso se activó, pero no pudimos guardar la investigación. Intenta Guardar nuevamente.','error');
+    if(result.ok){clearPending();clearSaveIntent();closeAuthModal();showStatus('✅ Investigación guardada correctamente en la nube y asociada a tu cuenta.','success');const h=document.getElementById('showHistory');if(h)h.click();}
+    else showStatus('❌ Tu acceso se activó, pero no pudimos guardar la investigación. Intenta Guardar nuevamente.','error');
   }
   async function syncCloudHistory(){
-    if(!session?.user)return;
-    const {data,error}=await sb.from('research_reports').select('*').order('created_at',{ascending:false}).limit(50);
-    if(error){console.warn('history',error);return;}
+    if(!session?.user)return;const {data,error}=await sb.from('research_reports').select('*').order('created_at',{ascending:false}).limit(50);if(error){console.warn('history',error);return;}
     let local=[];try{local=JSON.parse(localStorage.getItem(STORE_KEY)||'[]');if(!Array.isArray(local))local=[];}catch{}
-    const map=new Map(local.map(x=>[x.researchId||x.id,x]));
-    (data||[]).forEach(row=>{map.set(row.research_id,{id:row.id,researchId:row.research_id,title:row.title,productCount:row.product_count,winner:row.winner_product,report:row.report,createdAt:row.created_at,savedAt:row.created_at});});
-    const merged=[...map.values()].sort((a,b)=>new Date(b.createdAt||b.savedAt||0)-new Date(a.createdAt||a.savedAt||0)).slice(0,50);
-    try{localStorage.setItem(STORE_KEY,JSON.stringify(merged));}catch{}
+    const map=new Map(local.map(x=>[x.researchId||x.id,x]));(data||[]).forEach(row=>map.set(row.research_id,{id:row.id,researchId:row.research_id,title:row.title,productCount:row.product_count,winner:row.winner_product,report:row.report,createdAt:row.created_at,savedAt:row.created_at}));
+    try{localStorage.setItem(STORE_KEY,JSON.stringify([...map.values()].sort((a,b)=>new Date(b.createdAt||b.savedAt||0)-new Date(a.createdAt||a.savedAt||0)).slice(0,50)));}catch{}
   }
   function showPostAnalysisSavePrompt(data){
-    if(!data||!data.products?.length)return;
-    const rid=data.researchId||data.overallWinner?.productName||String(Date.now());
-    if(promptShownForResearchId===rid||session)return;
-    promptShownForResearchId=rid;
+    if(!data||!data.products?.length)return;const rid=data.researchId||data.overallWinner?.productName||String(Date.now());
+    if(promptShownForResearchId===rid||session)return;promptShownForResearchId=rid;
+    try{localStorage.setItem(PENDING_KEY,JSON.stringify(data));}catch{}
     setTimeout(()=>{if(!session)openAuthModal('save');},700);
   }
   function patchAnalytics(){
     const originalFetch=window.fetch.bind(window);
     window.fetch=async function(input,init){
-      const url=typeof input==='string'?input:input?.url||'';
-      const isResearch=String(url).includes('/api/research');
-      if(!isResearch)return originalFetch(input,init);
-      let body={};try{body=JSON.parse(init?.body||'{}');}catch{}
-      await event('analysis_started',{product_count:body?.products?.length||null});
+      const url=typeof input==='string'?input:input?.url||'',isResearch=String(url).includes('/api/research');if(!isResearch)return originalFetch(input,init);
+      let body={};try{body=JSON.parse(init?.body||'{}');}catch{} await event('analysis_started',{product_count:body?.products?.length||null});
       const response=await originalFetch(input,init);
-      try{
-        const clone=response.clone(),data=await clone.json();
-        if(response.ok){
-          lastResearch=data;window.__DPG_LAST_RESEARCH__=data;
-          try{localStorage.setItem(PENDING_KEY,JSON.stringify(data));}catch(e){console.warn('pending save',e);}
-          await event('analysis_completed',{product_count:data?.products?.length||null,research_id:data?.researchId||null});
-          showPostAnalysisSavePrompt(data);
-        }else await event('analysis_failed',{status:response.status,error:data?.error||'unknown'});
-      }catch{}
-      return response;
+      try{const clone=response.clone(),data=await clone.json();if(response.ok){lastResearch=data;window.__DPG_LAST_RESEARCH__=data;try{localStorage.setItem(PENDING_KEY,JSON.stringify(data));}catch{}await event('analysis_completed',{product_count:data?.products?.length||null,research_id:data?.researchId||null});showPostAnalysisSavePrompt(data);}else await event('analysis_failed',{status:response.status,error:data?.error||'unknown'});}catch{} return response;
     };
     const demo=document.getElementById('demo');if(demo)demo.addEventListener('click',()=>event('demo_clicked',{product_count:5}));
     const history=document.getElementById('showHistory');if(history)history.addEventListener('click',()=>event('history_opened'));
     const newBtn=document.getElementById('newResearch');if(newBtn)newBtn.addEventListener('click',()=>{clearPending();clearSaveIntent();event('new_research');});
-    document.addEventListener('click',async e=>{
-      const b=e.target.closest('button');if(!b)return;
-      const text=(b.textContent||'').toUpperCase();
-      if(text.includes('GUARDAR')||text.includes('SAVE')){
-        if(b.id==='dpg-auth-send'||b.id==='dpg-auth-close')return;
-        if(!session){setSaveIntent(true);openAuthModal('save');event('save_requires_login');return;}
-        const pending=loadPending();
-        if(pending){
-          const result=await saveCloud({researchId:pending.researchId,title:pending.overallWinner?.productName||'Investigación',productCount:pending.products?.length||1,report:pending});
-          if(result.ok){clearPending();clearSaveIntent();showStatus('✅ Investigación guardada correctamente en la nube.','success');}
-          else showStatus('❌ No se pudo guardar la investigación. Revisa la conexión con Supabase.','error');
-        }else showStatus('⚠️ No hay una investigación activa para guardar.','error');
-      }
-      if(text.includes('DESCARGAR'))event('report_downloaded',{product_count:lastResearch?.products?.length||null});
-      if(text.includes('EMAIL')||text.includes('CORREO'))event('email_clicked',{product_count:lastResearch?.products?.length||null});
-      if(text.includes('ELIMINAR'))event('report_deleted');
+    document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const text=(b.textContent||'').toUpperCase();
+      if(text.includes('GUARDAR')||text.includes('SAVE')){if(b.id==='dpg-auth-send'||b.id==='dpg-auth-close')return;if(!session){setSaveIntent(true);openAuthModal('save');event('save_requires_login');return;}const pending=loadPending();if(pending){const result=await saveCloud({researchId:pending.researchId,title:pending.overallWinner?.productName||'Investigación',productCount:pending.products?.length||1,report:pending});if(result.ok){clearPending();clearSaveIntent();showStatus('✅ Investigación guardada correctamente en la nube.','success');}else showStatus('❌ No se pudo guardar la investigación. Revisa la conexión con Supabase.','error');}else showStatus('⚠️ No hay una investigación activa para guardar.','error');}
+      if(text.includes('DESCARGAR'))event('report_downloaded',{product_count:lastResearch?.products?.length||null});if(text.includes('EMAIL')||text.includes('CORREO'))event('email_clicked',{product_count:lastResearch?.products?.length||null});if(text.includes('ELIMINAR'))event('report_deleted');
     });
   }
   init().catch(e=>console.warn('Supabase init failed',e));
