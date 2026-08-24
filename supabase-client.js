@@ -7,11 +7,13 @@
   const PENDING_KEY='dpg_pending_research_v39';
   const INTENT_KEY='dpg_save_intent_v39';
   const NAME_KEY='dpg_pending_name_v39';
+  const VISITOR_KEY='dpg_visitor_id_v39';
   let sb=null, session=null, lastResearch=null, authModal=null, promptShownForResearchId=null;
 
   function esc(v){return String(v==null?'':v).replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));}
   function loadScript(){return new Promise((resolve,reject)=>{if(window.supabase?.createClient)return resolve();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
   function showStatus(message,type){const el=document.getElementById('status');if(!el)return;el.className='status show'+(type==='error'?' error':type==='success'?' success':'');el.textContent=message;}
+  function getVisitorId(){try{let id=localStorage.getItem(VISITOR_KEY);if(!id){id='v_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);localStorage.setItem(VISITOR_KEY,id);}return id;}catch{return 'anonymous';}}
   function openAuthModal(mode='save'){
     if(!authModal)return;
     const title=document.getElementById('dpg-auth-title'),desc=document.getElementById('dpg-auth-desc'),msg=document.getElementById('dpg-auth-msg');
@@ -49,7 +51,6 @@
     if(session){await ensureProfile();await syncCloudHistory();if(hasSaveIntent())await autoSavePending();}
   }
   function addAccountUI(){
-    /* No mostramos un segundo boton flotante de guardado. El unico punto de entrada para guardar es el boton Guardar del informe. */
     const modal=document.createElement('div');modal.id='dpg-auth-modal';modal.style.cssText='display:none;position:fixed;inset:0;background:#0008;z-index:10000;align-items:center;justify-content:center;padding:20px';
     modal.innerHTML='<div style="max-width:430px;width:100%;background:white;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0004"><h2 id="dpg-auth-title" style="margin-top:0">🔐 Guarda esta investigación</h2><p id="dpg-auth-desc" style="color:#667085;font-size:13px;line-height:1.5">Puedes <b>descargar e imprimir</b> el informe sin registrarte. Si quieres conservarlo en la nube y abrirlo después desde cualquier dispositivo, crea tu acceso gratuito con nombre y correo.</p><label style="display:block;font-size:12px;font-weight:700;margin:10px 0 5px">Nombre</label><input id="dpg-name" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d7dbe5;border-radius:9px" placeholder="Tu nombre"><label style="display:block;font-size:12px;font-weight:700;margin:10px 0 5px">Correo</label><input id="dpg-email" type="email" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d7dbe5;border-radius:9px" placeholder="tu@email.com"><div id="dpg-auth-msg" style="font-size:12px;margin:10px 0;line-height:1.45"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button id="dpg-auth-close" style="border:0;border-radius:9px;padding:10px 14px;background:#eeeaff;color:#4937c4;font-weight:700">Ahora no</button><button id="dpg-auth-send" style="border:0;border-radius:9px;padding:10px 14px;background:#5b45ea;color:white;font-weight:700">Guardar y continuar</button></div></div>';
     document.body.appendChild(modal);authModal=modal;
@@ -59,18 +60,18 @@
       const name=document.getElementById('dpg-name').value.trim(),email=document.getElementById('dpg-email').value.trim(),msg=document.getElementById('dpg-auth-msg');
       if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){msg.textContent='Escribe un nombre y un correo válido.';msg.style.color='#b42318';return;}
       setPendingName(name);setSaveIntent(true);msg.textContent='Enviando enlace de acceso...';msg.style.color='#667085';
-      const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:getSafeRedirect(),shouldCreateUser:true}});
+      const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:getSafeRedirect(),shouldCreateUser:true,data:{full_name:name}}});
       if(error){
         const rateLimited=/rate limit|too many|429/i.test(error.message||'');
-        msg.textContent=rateLimited?'⚠️ Hemos alcanzado temporalmente el límite de correos de prueba de Supabase. Tu investigación sigue disponible y no se ha perdido. Cierra esta ventana y vuelve a intentarlo más tarde.':'❌ No pudimos enviar el enlace: '+error.message;
+        msg.textContent=rateLimited?'⚠️ El correo de acceso está temporalmente limitado. Tu investigación sigue disponible y no se ha perdido. Puedes descargarla ahora y volver a Guardar más tarde.':'❌ No pudimos enviar el enlace: '+error.message;
         msg.style.color='#b42318';
-        if(rateLimited){setSaveIntent(true);setTimeout(()=>{closeAuthModal();showStatus('⚠️ El correo de acceso está temporalmente limitado. La investigación no se perdió; puedes descargarla ahora y volver a Guardar más tarde.','error');},4500);}
+        if(rateLimited){setSaveIntent(true);setTimeout(()=>{closeAuthModal();showStatus('⚠️ El correo de acceso está temporalmente limitado. La investigación no se perdió; puedes descargarla ahora y volver a Guardar más tarde.','error');},3200);}
         return;
       }
       msg.innerHTML='✅ Enlace enviado. Revisa tu correo y ábrelo para activar tu acceso. Después volverás automáticamente a la app y la investigación se guardará en tu cuenta.';msg.style.color='#087443';
     };
   }
-  async function event(name,extra={}){try{await sb.from('usage_events').insert({user_id:session?.user?.id||null,event_name:name,product_count:extra.product_count||null,metadata:extra});}catch(e){console.warn('analytics',e);}}
+  async function event(name,extra={}){try{await sb.from('usage_events').insert({user_id:session?.user?.id||null,event_name:name,product_count:extra.product_count||null,metadata:Object.assign({visitor_id:getVisitorId()},extra)});}catch(e){console.warn('analytics',e);}}
   async function saveCloud(item){
     if(!session?.user)return {ok:false,reason:'login'};
     const report=item.report||item.result||item,title=item.title||report?.overallWinner?.productName||'Investigación';
