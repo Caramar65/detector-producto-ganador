@@ -28,38 +28,28 @@
   function clearSaveIntent(){try{localStorage.removeItem(INTENT_KEY);}catch{}}
   async function ensureProfile(){
     if(!session?.user)return false;
-    const user=session.user;
-    const pendingName=getPendingName();
+    const user=session.user,pendingName=getPendingName();
     const payload={id:user.id,full_name:pendingName||user.user_metadata?.full_name||user.email||'Usuario',email:user.email||null,updated_at:new Date().toISOString()};
     const {error}=await sb.from('profiles').upsert(payload,{onConflict:'id'});
     if(error){console.warn('profile',error);return false;}
     if(pendingName)try{localStorage.removeItem(NAME_KEY);}catch{}
     return true;
   }
-  function loadPending(){
-    if(lastResearch)return lastResearch;
-    try{const raw=localStorage.getItem(PENDING_KEY);if(raw)lastResearch=JSON.parse(raw);}catch(e){console.warn('pending load',e);}
-    return lastResearch;
-  }
+  function loadPending(){if(lastResearch)return lastResearch;try{const raw=localStorage.getItem(PENDING_KEY);if(raw)lastResearch=JSON.parse(raw);}catch(e){console.warn('pending load',e);}return lastResearch;}
   function clearPending(){try{localStorage.removeItem(PENDING_KEY);}catch{};lastResearch=null;}
   function getSafeRedirect(){return APP_URL+'/?auth=1';}
   async function init(){
     await loadScript();
     sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
-    const r=await sb.auth.getSession();
-    session=r.data.session||null;
-    sb.auth.onAuthStateChange((_e,s)=>{
-      session=s||null; updateAccount();
-      if(session)setTimeout(async()=>{await ensureProfile();await syncCloudHistory();if(hasSaveIntent())await autoSavePending();},150);
-    });
+    const r=await sb.auth.getSession();session=r.data.session||null;
+    sb.auth.onAuthStateChange((_e,s)=>{session=s||null;if(session)setTimeout(async()=>{await ensureProfile();await syncCloudHistory();if(hasSaveIntent())await autoSavePending();},150);});
     addAccountUI();
     patchAnalytics();
     event('app_opened',{page:location.pathname});
     if(session){await ensureProfile();await syncCloudHistory();if(hasSaveIntent())await autoSavePending();}
   }
   function addAccountUI(){
-    const box=document.createElement('div');box.id='dpg-account';box.style.cssText='position:fixed;top:14px;right:14px;z-index:9999;font-family:Arial,sans-serif';
-    document.body.appendChild(box);updateAccount();
+    /* No mostramos un segundo boton flotante de guardado. El unico punto de entrada para guardar es el boton Guardar del informe. */
     const modal=document.createElement('div');modal.id='dpg-auth-modal';modal.style.cssText='display:none;position:fixed;inset:0;background:#0008;z-index:10000;align-items:center;justify-content:center;padding:20px';
     modal.innerHTML='<div style="max-width:430px;width:100%;background:white;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0004"><h2 id="dpg-auth-title" style="margin-top:0">🔐 Guarda esta investigación</h2><p id="dpg-auth-desc" style="color:#667085;font-size:13px;line-height:1.5">Puedes <b>descargar e imprimir</b> el informe sin registrarte. Si quieres conservarlo en la nube y abrirlo después desde cualquier dispositivo, crea tu acceso gratuito con nombre y correo.</p><label style="display:block;font-size:12px;font-weight:700;margin:10px 0 5px">Nombre</label><input id="dpg-name" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d7dbe5;border-radius:9px" placeholder="Tu nombre"><label style="display:block;font-size:12px;font-weight:700;margin:10px 0 5px">Correo</label><input id="dpg-email" type="email" style="width:100%;box-sizing:border-box;padding:11px;border:1px solid #d7dbe5;border-radius:9px" placeholder="tu@email.com"><div id="dpg-auth-msg" style="font-size:12px;margin:10px 0;line-height:1.45"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button id="dpg-auth-close" style="border:0;border-radius:9px;padding:10px 14px;background:#eeeaff;color:#4937c4;font-weight:700">Ahora no</button><button id="dpg-auth-send" style="border:0;border-radius:9px;padding:10px 14px;background:#5b45ea;color:white;font-weight:700">Guardar y continuar</button></div></div>';
     document.body.appendChild(modal);authModal=modal;
@@ -70,14 +60,15 @@
       if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){msg.textContent='Escribe un nombre y un correo válido.';msg.style.color='#b42318';return;}
       setPendingName(name);setSaveIntent(true);msg.textContent='Enviando enlace de acceso...';msg.style.color='#667085';
       const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:getSafeRedirect(),shouldCreateUser:true}});
-      if(error){msg.textContent='No pudimos enviar el enlace: '+error.message;msg.style.color='#b42318';return;}
+      if(error){
+        const rateLimited=/rate limit|too many|429/i.test(error.message||'');
+        msg.textContent=rateLimited?'⚠️ Hemos alcanzado temporalmente el límite de correos de prueba de Supabase. Tu investigación sigue disponible y no se ha perdido. Cierra esta ventana y vuelve a intentarlo más tarde.':'❌ No pudimos enviar el enlace: '+error.message;
+        msg.style.color='#b42318';
+        if(rateLimited){setSaveIntent(true);setTimeout(()=>{closeAuthModal();showStatus('⚠️ El correo de acceso está temporalmente limitado. La investigación no se perdió; puedes descargarla ahora y volver a Guardar más tarde.','error');},4500);}
+        return;
+      }
       msg.innerHTML='✅ Enlace enviado. Revisa tu correo y ábrelo para activar tu acceso. Después volverás automáticamente a la app y la investigación se guardará en tu cuenta.';msg.style.color='#087443';
     };
-  }
-  function updateAccount(){
-    const box=document.getElementById('dpg-account');if(!box)return;
-    if(session){const name=esc(session.user.user_metadata?.full_name||getPendingName()||session.user.email||'Cuenta');box.innerHTML='<button id="dpg-account-btn" style="border:0;border-radius:999px;padding:8px 12px;background:white;color:#4937c4;box-shadow:0 4px 16px #0002;font-weight:700">👤 '+name+' · Salir</button>';document.getElementById('dpg-account-btn').onclick=()=>sb.auth.signOut();}
-    else{box.innerHTML='<button id="dpg-account-btn" style="border:0;border-radius:999px;padding:8px 12px;background:white;color:#4937c4;box-shadow:0 4px 16px #0002;font-weight:700">🔐 Guardar mis investigaciones</button>';document.getElementById('dpg-account-btn').onclick=()=>openAuthModal('account');}
   }
   async function event(name,extra={}){try{await sb.from('usage_events').insert({user_id:session?.user?.id||null,event_name:name,product_count:extra.product_count||null,metadata:extra});}catch(e){console.warn('analytics',e);}}
   async function saveCloud(item){
