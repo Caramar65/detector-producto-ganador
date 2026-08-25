@@ -39,7 +39,7 @@
   }
   function loadPending(){if(lastResearch)return lastResearch;try{const raw=localStorage.getItem(PENDING_KEY);if(raw)lastResearch=JSON.parse(raw);}catch(e){console.warn('pending load',e);}return lastResearch;}
   function clearPending(){try{localStorage.removeItem(PENDING_KEY);}catch{};lastResearch=null;}
-  function getSafeRedirect(){return APP_URL+'/?auth=1';}
+  function getSafeRedirect(){return APP_URL+'/auth/confirm.html';}
   async function init(){
     await loadScript();
     sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
