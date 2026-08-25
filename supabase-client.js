@@ -57,11 +57,12 @@
     const savedName=getPendingName();if(savedName)document.getElementById('dpg-name').value=savedName;
     document.getElementById('dpg-auth-close').onclick=()=>{setSaveIntent(false);closeAuthModal();};
     document.getElementById('dpg-auth-send').onclick=async()=>{
-      const name=document.getElementById('dpg-name').value.trim(),email=document.getElementById('dpg-email').value.trim(),msg=document.getElementById('dpg-auth-msg');
+      const name=document.getElementById('dpg-name').value.trim(),email=document.getElementById('dpg-email').value.trim(),msg=document.getElementById('dpg-auth-msg'),sendBtn=document.getElementById('dpg-auth-send');
       if(!name||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){msg.textContent='Escribe un nombre y un correo válido.';msg.style.color='#b42318';return;}
-      setPendingName(name);setSaveIntent(true);msg.textContent='Enviando enlace de acceso...';msg.style.color='#667085';
+      setPendingName(name);setSaveIntent(true);sendBtn.disabled=true;sendBtn.textContent='Enviando...';msg.textContent='Enviando enlace de acceso...';msg.style.color='#667085';
       const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:getSafeRedirect(),shouldCreateUser:true,data:{full_name:name}}});
       if(error){
+        sendBtn.disabled=false;sendBtn.textContent='Guardar y continuar';
         const rateLimited=/rate limit|too many|429/i.test(error.message||'');
         msg.textContent=rateLimited?'⚠️ El correo de acceso está temporalmente limitado. Tu investigación sigue disponible y no se ha perdido. Puedes descargarla ahora y volver a Guardar más tarde.':'❌ No pudimos enviar el enlace: '+error.message;
         msg.style.color='#b42318';
@@ -69,6 +70,11 @@
         return;
       }
       msg.innerHTML='✅ Enlace enviado. Revisa tu correo y ábrelo para activar tu acceso. Después volverás automáticamente a la app y la investigación se guardará en tu cuenta.';msg.style.color='#087443';
+      sendBtn.disabled=true;
+      setTimeout(()=>{
+        closeAuthModal();
+        showStatus('✅ Enlace enviado. Revisa tu correo para activar tu acceso. La investigación quedó pendiente y se guardará automáticamente al regresar.','success');
+      },1800);
     };
   }
   async function event(name,extra={}){try{await sb.from('usage_events').insert({user_id:session?.user?.id||null,event_name:name,product_count:extra.product_count||null,metadata:Object.assign({visitor_id:getVisitorId()},extra)});}catch(e){console.warn('analytics',e);}}
