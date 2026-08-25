@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Confirmación de correo — Detector de Producto Ganador</title>
+<style>
+:root{--p:#5b45ea;--ink:#172033;--muted:#667085;--ok:#087443;--bg:#f4f6fb;--line:#e5e7ef}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}.card{width:min(560px,100%);background:#fff;border:1px solid var(--line);border-radius:18px;padding:32px;box-shadow:0 12px 40px #00000012;text-align:center}.icon{font-size:54px}.brand{font-size:12px;font-weight:800;color:#5b45ea;letter-spacing:.4px}.spinner{width:34px;height:34px;border:4px solid #e9e6ff;border-top-color:var(--p);border-radius:50%;margin:24px auto;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}h1{font-size:27px;margin:12px 0}.muted{color:var(--muted);line-height:1.55;font-size:14px}.success{color:var(--ok);font-weight:800}.error{color:#b42318;font-weight:700}.btn{display:inline-block;margin-top:18px;background:var(--p);color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:800}.hidden{display:none}
+</style>
+</head>
+<body>
+<main class="card">
+<div class="brand">MICROAPP · DETECTOR DE PRODUCTO GANADOR</div>
+<div id="loading"><div class="icon">✉️</div><h1>Validando tu correo</h1><p class="muted">Estamos confirmando tu acceso de forma segura. Esta página solo valida el correo; no es la aplicación.</p><div class="spinner"></div></div>
+<div id="result" class="hidden"></div>
+</main>
+<script>
+(function(){
+'use strict';
+const SUPABASE_URL='https://qpvtygafwobaxltdntdg.supabase.co';
+const SUPABASE_KEY='sb_publishable_cjJpoVZoghi9x1bzI5H2ng_Zh_GNxx5';
+const APP_URL='https://detector-producto-ganador.vercel.app';
+const PENDING_KEY='dpg_pending_research_v39';
+const NAME_KEY='dpg_pending_name_v39';
+const result=document.getElementById('result');
+function show(html){document.getElementById('loading').classList.add('hidden');result.classList.remove('hidden');result.innerHTML=html;}
+async function main(){
+ try{
+  const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  await new Promise((res,rej)=>{s.onload=res;s.onerror=rej;document.head.appendChild(s)});
+  const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
+  await new Promise(r=>setTimeout(r,400));
+  const {data:{session},error:sessionError}=await sb.auth.getSession();
+  if(sessionError||!session?.user) throw new Error('No pudimos confirmar el acceso. El enlace puede haber expirado o ya fue utilizado.');
+  const user=session.user;
+  const name=localStorage.getItem(NAME_KEY)||user.user_metadata?.full_name||user.email||'Usuario';
+  const profile={id:user.id,full_name:name,email:user.email||null,updated_at:new Date().toISOString()};
+  const profileRes=await sb.from('profiles').upsert(profile,{onConflict:'id'});
+  if(profileRes.error) console.warn('profile',profileRes.error);
+  let saved=false;
+  let pending=null;
+  try{pending=JSON.parse(localStorage.getItem(PENDING_KEY)||'null')}catch{}
+  if(pending){
+    const report=pending;
+    const researchId=report.researchId||('LOCAL-'+Date.now());
+    const payload={user_id:user.id,research_id:researchId,title:report.overallWinner?.productName||'Investigación',product_count:Math.max(1,Math.min(5,Number(report.products?.length||1))),winner_product:report.overallWinner?.productName||null,report};
+    const saveRes=await sb.from('research_reports').upsert(payload,{onConflict:'user_id,research_id'});
+    if(!saveRes.error){saved=true;localStorage.removeItem(PENDING_KEY);localStorage.removeItem(NAME_KEY);localStorage.removeItem('dpg_save_intent_v39');}
+    else console.warn('research save',saveRes.error);
+  }
+  show('<div class="icon">✅</div><h1>Correo confirmado</h1><p class="success">Tu acceso fue activado correctamente.</p><p class="muted">'+(saved?'Tu investigación también quedó guardada en tu cuenta.':'Tu acceso quedó activado. Puedes volver a la aplicación y guardar la investigación.')+'</p><a class="btn" href="'+APP_URL+'/?auth=1">Continuar a la aplicación</a>');
+ }catch(e){show('<div class="icon">⚠️</div><h1>No pudimos confirmar el correo</h1><p class="error">'+String(e.message||e).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</p><p class="muted">Puedes volver a la aplicación e intentar solicitar un nuevo enlace.</p><a class="btn" href="'+APP_URL+'">Volver a la aplicación</a>');}
+}
+main();
+})();
+</script>
+</body>
+</html>
