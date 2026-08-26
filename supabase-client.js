@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const SUPABASE_URL='https://qpvtygafwobaxltdntdg.supabase.co';
-const SUPABASE_KEY='sb_publishable_cjJpoVZoghi9x1bz5I2Hng_Zh_GNxx5';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwdnR5Z2Fmd29iYXhsdGRudGRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0MDcxMjEsImV4cCI6MjEwMjk4MzEyMX0.dNWbTmhfDgveQaGvrgNAypcBp_4t7CMmQJr79fk5ID4';
 const APP_URL='https://detector-producto-ganador.vercel.app';
 const STORE_KEY='dpg_saved_research_v39',PENDING_KEY='dpg_pending_research_v39',INTENT_KEY='dpg_save_intent_v40',NAME_KEY='dpg_pending_name_v39',VISITOR_KEY='dpg_visitor_id_v39';
 let sb=null,session=null,lastResearch=null,authModal=null,promptShownForResearchId=null,pollTimer=null;
