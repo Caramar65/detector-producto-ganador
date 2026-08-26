@@ -11,7 +11,7 @@
 <body>
 <main class="card">
 <div class="brand">MICROAPP · DETECTOR DE PRODUCTO GANADOR</div>
-<div id="loading"><div class="icon">✉️</div><h1>Validando tu correo</h1><p class="muted">Estamos confirmando tu acceso de forma segura. Esta página solo valida el correo; no es la aplicación.</p><div class="spinner"></div></div>
+<div id="loading"><div class="icon">✉️</div><h1>Validando tu correo</h1><p class="muted">Estamos confirmando tu acceso de forma segura. Esta página solo valida el correo; no guarda ni muestra investigaciones.</p><div class="spinner"></div></div>
 <div id="result" class="hidden"></div>
 </main>
 <script>
@@ -20,8 +20,6 @@
 const SUPABASE_URL='https://qpvtygafwobaxltdntdg.supabase.co';
 const SUPABASE_KEY='sb_publishable_cjJpoVZoghi9x1bzI5H2ng_Zh_GNxx5';
 const APP_URL='https://detector-producto-ganador.vercel.app';
-const PENDING_KEY='dpg_pending_research_v39';
-const NAME_KEY='dpg_pending_name_v39';
 const result=document.getElementById('result');
 function show(html){document.getElementById('loading').classList.add('hidden');result.classList.remove('hidden');result.innerHTML=html;}
 async function main(){
@@ -32,23 +30,13 @@ async function main(){
   await new Promise(r=>setTimeout(r,400));
   const {data:{session},error:sessionError}=await sb.auth.getSession();
   if(sessionError||!session?.user) throw new Error('No pudimos confirmar el acceso. El enlace puede haber expirado o ya fue utilizado.');
-  const user=session.user;
-  const name=localStorage.getItem(NAME_KEY)||user.user_metadata?.full_name||user.email||'Usuario';
-  const profile={id:user.id,full_name:name,email:user.email||null,updated_at:new Date().toISOString()};
-  const profileRes=await sb.from('profiles').upsert(profile,{onConflict:'id'});
-  if(profileRes.error) console.warn('profile',profileRes.error);
-  let saved=false;
-  let pending=null;
-  try{pending=JSON.parse(localStorage.getItem(PENDING_KEY)||'null')}catch{}
-  if(pending){
-    const report=pending;
-    const researchId=report.researchId||('LOCAL-'+Date.now());
-    const payload={user_id:user.id,research_id:researchId,title:report.overallWinner?.productName||'Investigación',product_count:Math.max(1,Math.min(5,Number(report.products?.length||1))),winner_product:report.overallWinner?.productName||null,report};
-    const saveRes=await sb.from('research_reports').upsert(payload,{onConflict:'user_id,research_id'});
-    if(!saveRes.error){saved=true;localStorage.removeItem(PENDING_KEY);localStorage.removeItem(NAME_KEY);localStorage.removeItem('dpg_save_intent_v39');}
-    else console.warn('research save',saveRes.error);
+  const intentId=new URLSearchParams(location.search).get('intent');
+  if(intentId){
+    const {data,error}=await sb.rpc('claim_save_intent',{p_intent_id:intentId});
+    if(error) console.warn('claim save intent',error);
+    else if(!data?.ok) console.warn('claim save intent result',data);
   }
-  show('<div class="icon">✅</div><h1>Correo confirmado</h1><p class="success">Tu acceso fue activado correctamente.</p><p class="muted">'+(saved?'Tu investigación también quedó guardada en tu cuenta.':'Tu acceso quedó activado. Puedes volver a la aplicación y guardar la investigación.')+'</p><a class="btn" href="'+APP_URL+'/?auth=1">Continuar a la aplicación</a>');
+  show('<div class="icon">✅</div><h1>Correo confirmado</h1><p class="success">Tu acceso fue activado correctamente.</p><p class="muted">La investigación no se abre ni se guarda en este dispositivo. Si la investigación se realizó en otro equipo, seguirá asociada a ese equipo y se guardará allí automáticamente.</p><a class="btn" href="'+APP_URL+'">Continuar a la aplicación</a>');
  }catch(e){show('<div class="icon">⚠️</div><h1>No pudimos confirmar el correo</h1><p class="error">'+String(e.message||e).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</p><p class="muted">Puedes volver a la aplicación e intentar solicitar un nuevo enlace.</p><a class="btn" href="'+APP_URL+'">Volver a la aplicación</a>');}
 }
 main();
