@@ -1,0 +1,18 @@
+(function(){
+'use strict';
+const SUPABASE_URL='https://qpvtygafwobaxltdntdg.supabase.co';
+const SUPABASE_KEY='sb_publishable_cjJpoVZoghi9x1bzI5H2ng_Zh_GNxx5';
+const TOKEN_KEY='dpg_device_token_v1',VISITOR_KEY='dpg_visitor_id_v39',INTENT_KEY='dpg_save_intent_v40';
+let sb=null,visitorId='',deviceToken='';
+function get(k){try{return localStorage.getItem(k)||''}catch{return ''}}
+function set(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k)}catch{}}
+function show(msg,type){const el=document.getElementById('status');if(!el)return;el.className='status show'+(type==='error'?' error':type==='success'?' success':'');el.textContent=msg}
+function hideModal(){const m=document.getElementById('dpg-auth-modal');if(m)m.style.display='none'}
+function loadScript(){return new Promise((resolve,reject)=>{if(window.supabase?.createClient)return resolve();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
+async function rpc(name,args){try{const {data,error}=await sb.rpc(name,args);if(error)throw error;return data}catch(e){console.warn('device bridge',name,e);return null}}
+async function pollIntent(){const id=get(INTENT_KEY);if(!id||!visitorId)return false;const st=await rpc('get_save_intent_status',{p_intent_id:id,p_visitor_id:visitorId});if(!st?.ok)return false;if(st.status==='confirmed'||st.status==='completed'){if(st.device_token){deviceToken=st.device_token;set(TOKEN_KEY,deviceToken);hideModal();show('✅ Tu acceso quedó validado en este dispositivo. Las próximas investigaciones podrán guardarse sin volver a registrarte.','success');}if(st.status==='confirmed')await rpc('complete_save_intent',{p_intent_id:id});set(INTENT_KEY,'');return true}return false}
+async function saveWithDevice(research){if(!deviceToken||!visitorId||!research)return false;const data=await rpc('save_report_with_device_token',{p_device_token:deviceToken,p_visitor_id:visitorId,p_research:research});if(data?.ok){show('✅ Investigación guardada correctamente en tu cuenta.','success');return true}if(data?.reason==='invalid_device'){set(TOKEN_KEY,'');deviceToken='';return false}return false}
+function install(){visitorId=get(VISITOR_KEY);deviceToken=get(TOKEN_KEY);document.addEventListener('click',async function(e){const b=e.target.closest('button');if(!b||b.id==='dpg-auth-send'||b.id==='dpg-auth-close')return;const text=(b.textContent||'').toUpperCase();if(text.includes('GUARDAR')&&!text.includes('DESCARGAR')&&deviceToken){e.preventDefault();e.stopImmediatePropagation();let research=window.__DPG_LAST_RESEARCH__;if(!research){try{research=JSON.parse(localStorage.getItem('dpg_pending_research_v39')||'null')}catch{}}if(!research){show('⚠️ No hay una investigación activa para guardar.','error');return}const ok=await saveWithDevice(research);if(ok){try{localStorage.removeItem('dpg_pending_research_v39')}catch{}}return}},true);const observer=new MutationObserver(()=>{if(deviceToken)hideModal()});observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});let tries=0;const timer=setInterval(async()=>{tries++;const done=await pollIntent();if(done||tries>=200)clearInterval(timer)},3000);pollIntent()}
+async function init(){try{await loadScript();sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});install()}catch(e){console.warn('device bridge init',e)}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
