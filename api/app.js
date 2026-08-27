@@ -26,14 +26,20 @@ module.exports=async function handler(req,res){
           else if(body instanceof FormData)products=[];
         }catch(e){}
         const scored=await nativeFetch('/api/recalculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({result,products})});
-        if(scored.ok){
-          const data=await scored.json();
-          return new Response(JSON.stringify(data),{status:response.status,statusText:response.statusText,headers:{'Content-Type':'application/json'}});
+        if(!scored.ok){
+          let details='';
+          try{const err=await scored.clone().json();details=err?.error||'';}catch(e){}
+          return new Response(JSON.stringify({error:details||'No fue posible calcular la puntuación determinista. La investigación no se mostrará hasta completar el cálculo.',code:'SCORING_UNAVAILABLE'}),{status:502,headers:{'Content-Type':'application/json'}});
         }
+        const data=await scored.json();
+        if(!data||!Array.isArray(data.products)||!data.scoringMethodology){
+          return new Response(JSON.stringify({error:'El motor de puntuación no devolvió un resultado verificable. La investigación no se mostrará hasta completar el cálculo.',code:'SCORING_INVALID'}),{status:502,headers:{'Content-Type':'application/json'}});
+        }
+        return new Response(JSON.stringify(data),{status:response.status,statusText:response.statusText,headers:{'Content-Type':'application/json'}});
       }catch(e){
-        console.warn('Scoring bridge fallback:',e);
+        console.error('Scoring bridge error:',e);
+        return new Response(JSON.stringify({error:'No fue posible validar la puntuación final. La investigación no se mostrará hasta completar el cálculo.',code:'SCORING_ERROR'}),{status:502,headers:{'Content-Type':'application/json'}});
       }
-      return response;
     }
     return nativeFetch(input,init);
   };
