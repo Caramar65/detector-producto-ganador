@@ -13,19 +13,29 @@ module.exports=async function handler(req,res){
   window.fetch=async function(input,init){
     const url=typeof input==='string'?input:(input&&input.url)||'';
     const method=String((init&&init.method)||(input&&input.method)||'GET').toUpperCase();
-    if(method==='POST'&&/\\/api\\/research(?:\\?|$)/.test(url)){
+    const isResearch=method==='POST'&&/(?:^|\\/)api\\/research(?:\\?|$)/.test(url);
+    let requestProducts=[];
+    let requestBodyText='';
+    try{
+      if(init&&typeof init.body==='string')requestBodyText=init.body;
+      else if(typeof Request!=='undefined'&&input instanceof Request){
+        const clonedRequest=input.clone();
+        requestBodyText=await clonedRequest.text();
+      }
+      if(requestBodyText){
+        const parsed=JSON.parse(requestBodyText);
+        requestProducts=Array.isArray(parsed.products)?parsed.products:[];
+      }
+    }catch(e){
+      console.warn('Scoring bridge: could not read research request body',e);
+    }
+    if(isResearch){
       const response=await nativeFetch(input,init);
       if(!response.ok)return response;
       try{
         const cloned=response.clone();
         const result=await cloned.json();
-        let products=[];
-        try{
-          const body=init&&init.body;
-          if(typeof body==='string')products=JSON.parse(body).products||[];
-          else if(body instanceof FormData)products=[];
-        }catch(e){}
-        const scored=await nativeFetch('/api/recalculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({result,products})});
+        const scored=await nativeFetch('/api/recalculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({result,products:requestProducts})});
         if(!scored.ok){
           let details='';
           try{const err=await scored.clone().json();details=err?.error||'';}catch(e){}
