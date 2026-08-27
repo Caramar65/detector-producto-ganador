@@ -99,6 +99,6 @@ El Detector no responde únicamente "qué producto es bueno". Busca responder:
 
 ---
 
-**Versión metodológica:** 1.0  
+**Versión metodológica:** 1.1  
 **Motor de puntuación:** cálculo determinista en servidor  
 **Investigación:** IA + búsqueda web + evidencia y fuentes  
