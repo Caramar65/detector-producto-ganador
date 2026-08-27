@@ -64,8 +64,12 @@ function addConsent(){
   }catch(_e){}
  },true);
 }
+function loadDeviceBridge(){
+ if(document.getElementById('dpg-device-bridge')) return;
+ const s=document.createElement('script');s.id='dpg-device-bridge';s.src='/device-bridge.js?v=20260827';s.defer=true;document.head.appendChild(s);
+}
 function init(){
- addStyle();injectBrand();
+ addStyle();injectBrand();loadDeviceBridge();
  const observer=new MutationObserver(()=>{injectBrand();addConsent();});
  observer.observe(document.body,{childList:true,subtree:true});
  addConsent();
