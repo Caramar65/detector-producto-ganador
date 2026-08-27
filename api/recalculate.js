@@ -1,13 +1,20 @@
 function clamp(v,min=0,max=100){return Math.max(min,Math.min(max,v));}
 function qualitative(v){const n=Number(v);if(!Number.isFinite(n))return 0;return clamp((n-1)/4*100);}
 function economicScore(product,input){
-  const sale=Number(input?.salePrice ?? product?.salePrice);
-  const margin=Number(input?.margin ?? product?.margin);
-  const returns=Number(input?.returns ?? product?.returns ?? 0);
+  const sale=Number(input?.salePrice);
+  const cost=Number(input?.cost);
+  const shipping=Number(input?.shipping||0);
+  const otherCosts=Number(input?.otherCosts||0);
+  const returns=Number(input?.returns ?? 0);
+  let margin;
+  if(Number.isFinite(sale)&&sale>0&&Number.isFinite(cost)&&cost>=0&&Number.isFinite(shipping)&&shipping>=0&&Number.isFinite(otherCosts)&&otherCosts>=0){
+    margin=sale-cost-shipping-otherCosts;
+  }else{
+    margin=Number(product?.margin);
+  }
   if(!Number.isFinite(sale)||sale<=0||!Number.isFinite(margin))return 0;
   const adjusted=Math.max(0,margin*(1-clamp(returns,0,100)/100));
   const adjustedMarginPct=adjusted/sale*100;
-  // 50% de margen ajustado se considera el nivel económico de referencia (100/100).
   return clamp(adjustedMarginPct/50*100);
 }
 function scoreProduct(p,input){
@@ -16,7 +23,7 @@ function scoreProduct(p,input){
   const visual=qualitative(p.visual);
   const differentiation=qualitative(p.differentiation);
   const impulse=qualitative(p.impulse);
-  const economy=economicScore(p,input);
+  const economy=economicScore(p,input||{});
   const meta=clamp(Number(p.metaScore)||0);
   const tiktok=clamp(Number(p.tiktokScore)||0);
   const bestPlatform=Math.max(meta,tiktok);
@@ -43,7 +50,7 @@ export default async function handler(req,res){
     const overallWinner=products.reduce((a,b)=>b.overallScore>a.overallScore?b:a);
     const metaWinner=products.reduce((a,b)=>(Number(b.metaScore)||0)>(Number(a.metaScore)||0)?b:a);
     const tiktokWinner=products.reduce((a,b)=>(Number(b.tiktokScore)||0)>(Number(a.tiktokScore)||0)?b:a);
-    const out=Object.assign({},result,{products,overallWinner:{id:overallWinner.id,productName:overallWinner.productName},metaWinner:{id:metaWinner.id,productName:metaWinner.productName,metaScore:metaWinner.metaScore,platformReason:metaWinner.platformReason||''},tiktokWinner:{id:tiktokWinner.id,productName:tiktokWinner.productName,tiktokScore:tiktokWinner.tiktokScore,platformReason:tiktokWinner.platformReason||''},scoringMethodology:{version:'1.0',weights:{demand:.20,competitionOpportunity:.15,visual:.15,differentiation:.10,impulse:.10,economy:.20,bestPlatform:.10},qualitativeScale:'1-5 converted linearly to 0-100: (score-1)/4*100',economicFormula:'Adjusted margin percentage / 50% × 100, capped at 0-100',platformRule:'The higher of Meta Ads and TikTok Ads scores supplies the 10% platform component; ties favor Meta Ads.',winnerRule:'Highest deterministic overallScore wins.'}});
+    const out=Object.assign({},result,{products,overallWinner:{id:overallWinner.id,productName:overallWinner.productName},metaWinner:{id:metaWinner.id,productName:metaWinner.productName,metaScore:metaWinner.metaScore,platformReason:metaWinner.platformReason||''},tiktokWinner:{id:tiktokWinner.id,productName:tiktokWinner.productName,tiktokScore:tiktokWinner.tiktokScore,platformReason:tiktokWinner.platformReason||''},scoringMethodology:{version:'1.1',weights:{demand:.20,competitionOpportunity:.15,visual:.15,differentiation:.10,impulse:.10,economy:.20,bestPlatform:.10},qualitativeScale:'1-5 converted linearly to 0-100: (score-1)/4*100',economicFormula:'(sale price - product cost - shipping - other costs) adjusted for returns, then adjusted margin percentage / 50% × 100, capped at 0-100',platformRule:'The higher of Meta Ads and TikTok Ads scores supplies the 10% platform component; ties favor Meta Ads.',winnerRule:'Highest deterministic overallScore wins.'}});
     return res.status(200).json(out);
   }catch(e){
     console.error('Recalculate error:',e);
