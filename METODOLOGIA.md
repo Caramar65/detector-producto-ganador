@@ -102,3 +102,64 @@ El Detector no responde únicamente "qué producto es bueno". Busca responder:
 **Versión metodológica:** 1.1  
 **Motor de puntuación:** cálculo determinista en servidor  
 **Investigación:** IA + búsqueda web + evidencia y fuentes  
+
+## V4.0 — Principio de factibilidad comercial
+
+La evolución V4 cambia el objetivo operativo: el Detector no intenta identificar el producto con más ventas, más anuncios o mayor popularidad. Busca identificar el producto que presenta condiciones suficientemente favorables para justificar una investigación o prueba bajo las condiciones del usuario.
+
+### Variables de la decisión V4
+
+| Variable | Peso |
+|---|---:|
+| Demanda | 15% |
+| Oportunidad competitiva | 10% |
+| Potencial visual | 5% |
+| Diferenciación | 10% |
+| Impulso de compra | 5% |
+| Economía ajustada | 35% |
+| Riesgo comercial | 10% |
+| Mejor plataforma | 10% |
+| **Total** | **100%** |
+
+La economía pasa a ser la variable individual de mayor peso.
+
+### Economía ajustada
+
+El servidor calcula de forma determinista:
+
+- margen = precio de venta − costo − envío − otros costos;
+- margen ajustado = margen × (1 − devoluciones/no recibidos %);
+- margen ajustado porcentual = margen ajustado / precio de venta;
+- CPA máximo = margen ajustado;
+- CPA objetivo = CPA máximo × 55%;
+- ROAS de equilibrio = precio de venta / margen ajustado;
+- presupuesto asignado por producto = presupuesto mensual / número de productos analizados;
+- capacidad de test = presupuesto asignado / CPA objetivo.
+
+El economicScore ya no depende de la opinión de la IA. Se calcula en servidor combinando margen ajustado y capacidad potencial de adquisición con el presupuesto disponible.
+
+### Regla de decisión
+
+La IA investiga y aporta evidencia. El servidor calcula la economía y recalcula el overallScore. Esto reduce el riesgo de que una narrativa de alta demanda o abundante publicidad domine una oportunidad con economía deficiente.
+
+Un producto puede tener mucha demanda y, aun así, recibir una factibilidad baja si:
+
+- el margen no deja espacio para adquisición;
+- el CPA máximo es demasiado bajo;
+- el presupuesto disponible permite muy pocas oportunidades de test;
+- el riesgo logístico o regulatorio es elevado;
+- existe poca diferenciación.
+
+### Resultado
+
+La aplicación utiliza:
+
+- **FACTIBILIDAD ALTA**
+- **FACTIBILIDAD BUENA PARA TEST**
+- **TEST CON PRECAUCIÓN**
+- **FACTIBILIDAD DÉBIL**
+- **NO PRIORITARIO**
+
+Estos estados no son una garantía de ventas. Representan una evaluación de las condiciones disponibles para investigar o probar el producto.
+
+**Versión metodológica:** 2.0
