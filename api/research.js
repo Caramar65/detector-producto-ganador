@@ -8,7 +8,7 @@ module.exports = async function handler(req, res) {
   const pad = n => String(n).padStart(2, "0");
   const d = new Date();
   const researchId = `INV-${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}-${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
-  const researchVersion = "V3.9";
+  const researchVersion = "V4.0";
   const clamp = (n,min,max) => Math.min(max, Math.max(min, Number(n) || 0));
 
   try {
@@ -16,7 +16,12 @@ module.exports = async function handler(req, res) {
     if (!key) return res.status(500).json({ error: "OPENAI_API_KEY no está configurada en Vercel.", researchId, researchVersion });
 
     const input = Array.isArray(req.body?.products) ? req.body.products : [];
+    const settings = req.body?.settings || {};
+    const monthlyBudget = Number(settings.monthlyBudget || 500000);
+    const salesModel = String(settings.salesModel || "Venta online / contra entrega");
+    const preferredPlatform = String(settings.preferredPlatform || "Indiferente");
     if (!input.length || input.length > 5) return res.status(400).json({ error: "Debes enviar entre 1 y 5 productos.", researchId, researchVersion });
+    if (!Number.isFinite(monthlyBudget) || monthlyBudget < 0) return res.status(400).json({ error: "El presupuesto mensual no es válido.", researchId, researchVersion });
 
     const products = input.map((p,i) => {
       const productName = String(p.productName || p.product || p.name || "").trim();
@@ -34,8 +39,12 @@ module.exports = async function handler(req, res) {
       const marginPercent = salePrice ? margin / salePrice * 100 : 0;
       const maxCPA = Math.max(0, margin * (1 - returns / 100));
       const targetCPA = Math.max(0, maxCPA * 0.55);
-      const breakEvenROAS = margin > 0 ? salePrice / margin : 0;
-      return { id:Number(p.id)||i+1, productName, description, url, cost, shipping, otherCosts, salePrice, returns, margin, marginPercent, maxCPA, targetCPA, breakEvenROAS };
+      const adjustedMargin = margin * (1 - returns / 100);
+      const adjustedMarginPercent = salePrice ? adjustedMargin / salePrice * 100 : 0;
+      const breakEvenROAS = adjustedMargin > 0 ? salePrice / adjustedMargin : 0;
+      const budgetPerProduct = input.length ? monthlyBudget / input.length : monthlyBudget;
+      const testCapacity = targetCPA > 0 ? Math.floor(budgetPerProduct / targetCPA) : 0;
+      return { id:Number(p.id)||i+1, productName, description, url, cost, shipping, otherCosts, salePrice, returns, margin, marginPercent, adjustedMargin, adjustedMarginPercent, maxCPA, targetCPA, breakEvenROAS, budgetPerProduct, testCapacity };
     });
 
     const block = products.map(p => `PRODUCTO ${p.id}: ${p.productName}\nDescripción: ${p.description || "No proporcionada"}\nURL PROPORCIONADA POR EL USUARIO: ${p.url || "No proporcionada"}\nCosto: ${p.cost} COP | Envío: ${p.shipping} COP | Otros: ${p.otherCosts} COP | Venta: ${p.salePrice} COP | Devoluciones: ${p.returns}%\nMargen servidor: ${p.margin.toFixed(0)} COP (${p.marginPercent.toFixed(2)}%) | CPA máximo: ${p.maxCPA.toFixed(0)} | CPA objetivo: ${p.targetCPA.toFixed(0)} | ROAS equilibrio: ${p.breakEvenROAS.toFixed(2)}x`).join("\n\n");
@@ -64,15 +73,15 @@ module.exports = async function handler(req, res) {
         id:{type:"integer"},productName:short,overallScore:{type:"number"},priority:tiny,verdict:short,confidence:{type:"number"},
         recommendedPlatform:tiny,platformReason:short,finalReason:short,summary:short,
         demand:{type:"integer"},competitionOpportunity:{type:"integer"},visual:{type:"integer"},differentiation:{type:"integer"},impulse:{type:"integer"},
-        economicScore:{type:"number"},metaScore:{type:"number"},tiktokScore:{type:"number"},
-        margin:{type:"number"},marginPercent:{type:"number"},maxCPA:{type:"number"},targetCPA:{type:"number"},breakEvenROAS:{type:"number"},
+        economicScore:{type:"number"},metaScore:{type:"number"},tiktokScore:{type:"number"},riskScore:{type:"number"},feasibilityScore:{type:"number"},
+        margin:{type:"number"},marginPercent:{type:"number"},adjustedMargin:{type:"number"},adjustedMarginPercent:{type:"number"},maxCPA:{type:"number"},targetCPA:{type:"number"},breakEvenROAS:{type:"number"},budgetPerProduct:{type:"number"},testCapacity:{type:"number"},
         strengths:list3,weaknesses:list3,risks:list3,angles:list3,testPlan:list3,evidence:{type:"array",minItems:2,maxItems:4,items:evidenceItem}
       },
       required:["id","productName","overallScore","priority","verdict","confidence","recommendedPlatform","platformReason","finalReason","summary","demand","competitionOpportunity","visual","differentiation","impulse","economicScore","metaScore","tiktokScore","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan","evidence"]
     };
     const winnerSchema = {
       type:"object",additionalProperties:false,
-      properties:{id:{type:"integer"},productName:short,overallScore:{type:"number"},priority:tiny,recommendedPlatform:tiny,platformReason:short,finalReason:short,summary:short,margin:{type:"number"},marginPercent:{type:"number"},maxCPA:{type:"number"},targetCPA:{type:"number"},breakEvenROAS:{type:"number"},strengths:list3,weaknesses:list3,risks:list3,angles:list3,testPlan:list3},
+      properties:{id:{type:"integer"},productName:short,overallScore:{type:"number"},priority:tiny,recommendedPlatform:tiny,platformReason:short,finalReason:short,summary:short,feasibilityVerdict:tiny,margin:{type:"number"},marginPercent:{type:"number"},maxCPA:{type:"number"},targetCPA:{type:"number"},breakEvenROAS:{type:"number"},strengths:list3,weaknesses:list3,risks:list3,angles:list3,testPlan:list3},
       required:["id","productName","overallScore","priority","recommendedPlatform","platformReason","finalReason","summary","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan"]
     };
     const schema = {
@@ -91,7 +100,9 @@ module.exports = async function handler(req, res) {
 
     const prompt = `Eres un analista profesional de ecommerce, dropshipping y publicidad digital para Colombia.
 
-OBJETIVO: compara TODOS los productos recibidos y determina ganador general, ganador Meta Ads y ganador TikTok Ads. La decisión debe ser útil para saber qué producto probar primero.
+OBJETIVO: compara TODOS los productos recibidos para determinar si cada producto es COMERCIALMENTE FACTIBLE para que el usuario lo compre, anuncie y venda con margen. El volumen de ventas o cantidad de anuncios NO debe ser tratado como sinónimo de oportunidad.
+CONTEXTO DEL USUARIO: presupuesto mensual disponible ${monthlyBudget.toFixed(0)} COP; modelo ${salesModel}; plataforma preferida ${preferredPlatform}.
+La pregunta principal es "¿vale la pena investigar/testear este producto con mis condiciones?", no "¿qué producto tiene más ventas?".
 
 INVESTIGACIÓN WEB: usa búsqueda web actual y relevante. Para cada producto prioriza hasta 2 búsquedas de alta calidad: una fuente oficial/regulatoria cuando aplique y una fuente de mercado/oferta. No hagas búsquedas redundantes. Si una afirmación no puede verificarse, declárala como inferencia o recomendación.
 
@@ -101,9 +112,9 @@ FUENTES: sources debe reutilizar las URLs de evidence y explicar qué respalda c
 
 SALUD Y CUMPLIMIENTO: evita afirmaciones clínicas, terapéuticas o de curación no verificadas. Identifica riesgos de publicidad, etiquetado, registro sanitario y políticas de plataforma cuando correspondan. Usa lenguaje de bienestar cuando la evidencia no permita una afirmación médica.
 
-CRITERIOS: demand, competitionOpportunity, visual, differentiation e impulse de 1-5. 5 es mejor. economicScore, metaScore, tiktokScore y overallScore de 0-100. Ponderación general: demanda 20%, competencia 15%, visual 15%, diferenciación 10%, impulso 10%, economía 20%, mejor plataforma 10%. 80-100 prioritario; 70-79 vale la pena testear; 60-69 test con precaución; 50-59 débil; 0-49 no prioritario.
+CRITERIOS: demand, competitionOpportunity, visual, differentiation e impulse de 1-5. 5 es mejor. economicScore, metaScore, tiktokScore, riskScore y feasibilityScore de 0-100. La economía es PRIORITARIA. El overallScore final será recalculado por servidor con esta fórmula determinista: demanda 15%, oportunidad competitiva 10%, visual 5%, diferenciación 10%, impulso 5%, economía 35%, riesgo comercial 10%, mejor plataforma 10%. No uses popularidad, ventas o cantidad de anuncios como sustituto de rentabilidad. riskScore representa seguridad comercial (100 = riesgo bajo; 0 = riesgo alto) considerando logística, devoluciones, regulación, dependencia de claims y facilidad de diferenciación. La aplicación calcula economicScore en servidor y puede corregir el valor de la IA. 80-100 = FACTIBILIDAD ALTA; 70-79 = FACTIBILIDAD BUENA PARA TEST; 60-69 = TEST CON PRECAUCIÓN; 50-59 = FACTIBILIDAD DÉBIL; 0-49 = NO PRIORITARIO.
 
-ECONOMÍA: usa EXACTAMENTE los valores del servidor para margin, marginPercent, maxCPA, targetCPA y breakEvenROAS.
+ECONOMÍA: usa EXACTAMENTE los valores del servidor para margin, marginPercent, adjustedMargin, adjustedMarginPercent, maxCPA, targetCPA, breakEvenROAS, budgetPerProduct y testCapacity. Explica especialmente el CPA máximo, el CPA objetivo y cuántas ventas podría financiar el presupuesto mensual asignado si se alcanza el CPA objetivo.
 
 FORMATO: strengths, weaknesses, risks, angles y testPlan máximo 3 elementos cada uno. Ajusta estrictamente al JSON Schema. Sin markdown y sin texto fuera del JSON.
 
@@ -194,6 +205,28 @@ PRODUCTOS:\n${block}`;
 
     if(!result.products.length) return res.status(502).json({error:"La investigación no devolvió productos analizables.",researchId,researchVersion});
 
+    // Motor V4.0: la IA investiga; el servidor decide la factibilidad.
+    const economics = new Map(products.map(p => {
+      const marginComponent = clamp(p.adjustedMarginPercent / 50 * 100, 0, 100);
+      const budgetComponent = clamp(p.testCapacity / 20 * 100, 0, 100);
+      return [p.id, { ...p, economicScore: marginComponent * 0.65 + budgetComponent * 0.35 }];
+    }));
+    result.products = result.products.map(r => {
+      const e = economics.get(Number(r.id));
+      const qualitative = {
+        demand:(clamp(r.demand,1,5)-1)/4*100,
+        competition:(clamp(r.competitionOpportunity,1,5)-1)/4*100,
+        visual:(clamp(r.visual,1,5)-1)/4*100,
+        differentiation:(clamp(r.differentiation,1,5)-1)/4*100,
+        impulse:(clamp(r.impulse,1,5)-1)/4*100
+      };
+      const platformScore=Math.max(clamp(r.metaScore,0,100),clamp(r.tiktokScore,0,100));
+      const riskScore=clamp(r.riskScore ?? 50,0,100);
+      const overallScore=qualitative.demand*0.15+qualitative.competition*0.10+qualitative.visual*0.05+qualitative.differentiation*0.10+qualitative.impulse*0.05+e.economicScore*0.35+riskScore*0.10+platformScore*0.10;
+      const feasibilityVerdict=overallScore>=80?"FACTIBILIDAD ALTA":overallScore>=70?"FACTIBILIDAD BUENA PARA TEST":overallScore>=60?"TEST CON PRECAUCIÓN":overallScore>=50?"FACTIBILIDAD DÉBIL":"NO PRIORITARIO";
+      return {...r,overallScore:clamp(overallScore,0,100),economicScore:e.economicScore,adjustedMargin:e.adjustedMargin,adjustedMarginPercent:e.adjustedMarginPercent,budgetPerProduct:e.budgetPerProduct,testCapacity:e.testCapacity,maxCPA:e.maxCPA,targetCPA:e.targetCPA,breakEvenROAS:e.breakEvenROAS,riskScore,feasibilityScore:clamp(overallScore,0,100),feasibilityVerdict};
+    });
+
     const sorted=result.products.slice().sort((a,b)=>b.overallScore-a.overallScore);
     const meta=result.products.slice().sort((a,b)=>b.metaScore-a.metaScore)[0];
     const tik=result.products.slice().sort((a,b)=>b.tiktokScore-a.tiktokScore)[0];
@@ -230,8 +263,9 @@ PRODUCTOS:\n${block}`;
 
     result.researchId=researchId;
     result.researchVersion=researchVersion;
+    result.settings={monthlyBudget,salesModel,preferredPlatform};
     result.generatedAt=new Date().toISOString();
-    result.traceability={enabled:true,verifiedSourceCount:result.sources.length,evidenceCount:result.products.reduce((n,p)=>n+(Array.isArray(p.evidence)?p.evidence.length:0),0),webCitationCount:webCitations.length,rule:"Las afirmaciones verificables deben poder asociarse a evidencia y a una fuente real; las inferencias y recomendaciones se identifican como tales."};
+    result.traceability={enabled:true,verifiedSourceCount:result.sources.length,evidenceCount:result.products.reduce((n,p)=>n+(Array.isArray(p.evidence)?p.evidence.length:0),0),webCitationCount:webCitations.length,rule:"La IA investiga y aporta evidencia; el servidor recalcula la economía y el score de factibilidad con una fórmula fija. Popularidad y publicidad no sustituyen rentabilidad."};
     result.performance={productCount:products.length,durationMs:Date.now()-startedAt};
 
     return res.status(200).json(result);
