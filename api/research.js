@@ -101,7 +101,7 @@ module.exports = async function handler(req, res) {
     const prompt = `Eres un analista profesional de ecommerce, dropshipping y publicidad digital para Colombia.
 
 OBJETIVO: compara TODOS los productos recibidos para determinar si cada producto es COMERCIALMENTE FACTIBLE para que el usuario lo compre, anuncie y venda con margen. El volumen de ventas o cantidad de anuncios NO debe ser tratado como sinónimo de oportunidad.
-CONTEXTO DEL USUARIO: presupuesto mensual disponible ${monthlyBudget} COP; modelo ${salesModel}; plataforma preferida ${preferredPlatform}.
+CONTEXTO DEL USUARIO: presupuesto mensual disponible ${monthlyBudget.toFixed(0)} COP; modelo ${salesModel}; plataforma preferida ${preferredPlatform}.
 La pregunta principal es "¿vale la pena investigar/testear este producto con mis condiciones?", no "¿qué producto tiene más ventas?".
 
 INVESTIGACIÓN WEB: usa búsqueda web actual y relevante. Para cada producto prioriza hasta 2 búsquedas de alta calidad: una fuente oficial/regulatoria cuando aplique y una fuente de mercado/oferta. No hagas búsquedas redundantes. Si una afirmación no puede verificarse, declárala como inferencia o recomendación.
