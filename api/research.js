@@ -77,12 +77,12 @@ module.exports = async function handler(req, res) {
         margin:{type:"number"},marginPercent:{type:"number"},adjustedMargin:{type:"number"},adjustedMarginPercent:{type:"number"},maxCPA:{type:"number"},targetCPA:{type:"number"},breakEvenROAS:{type:"number"},budgetPerProduct:{type:"number"},testCapacity:{type:"number"},
         strengths:list3,weaknesses:list3,risks:list3,angles:list3,testPlan:list3,evidence:{type:"array",minItems:2,maxItems:4,items:evidenceItem}
       },
-      required:["id","productName","overallScore","priority","verdict","confidence","recommendedPlatform","platformReason","finalReason","summary","demand","competitionOpportunity","visual","differentiation","impulse","economicScore","metaScore","tiktokScore","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan","evidence"]
+      required:["id","productName","overallScore","priority","verdict","confidence","recommendedPlatform","platformReason","finalReason","summary","demand","competitionOpportunity","visual","differentiation","impulse","economicScore","metaScore","tiktokScore","riskScore","feasibilityScore","margin","marginPercent","adjustedMargin","adjustedMarginPercent","maxCPA","targetCPA","breakEvenROAS","budgetPerProduct","testCapacity","strengths","weaknesses","risks","angles","testPlan","evidence"]
     };
     const winnerSchema = {
       type:"object",additionalProperties:false,
       properties:{id:{type:"integer"},productName:short,overallScore:{type:"number"},priority:tiny,recommendedPlatform:tiny,platformReason:short,finalReason:short,summary:short,feasibilityVerdict:tiny,margin:{type:"number"},marginPercent:{type:"number"},maxCPA:{type:"number"},targetCPA:{type:"number"},breakEvenROAS:{type:"number"},strengths:list3,weaknesses:list3,risks:list3,angles:list3,testPlan:list3},
-      required:["id","productName","overallScore","priority","recommendedPlatform","platformReason","finalReason","summary","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan"]
+      required:["id","productName","overallScore","priority","recommendedPlatform","platformReason","finalReason","summary","feasibilityVerdict","margin","marginPercent","maxCPA","targetCPA","breakEvenROAS","strengths","weaknesses","risks","angles","testPlan"]
     };
     const schema = {
       type:"object",additionalProperties:false,
@@ -129,12 +129,12 @@ PRODUCTOS:\n${block}`;
         method:"POST",
         headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},
         body:JSON.stringify({
-          model:process.env.OPENAI_MODEL || "gpt-5.4-mini",
+          model:(["gpt-5.6-luna","gpt-5.6-terra","gpt-5.6-sol"].includes(String(process.env.OPENAI_MODEL||"")) ? String(process.env.OPENAI_MODEL) : "gpt-5.6-luna"),
           tools:[{type:"web_search",search_context_size:"low"}],
           input:prompt,
           max_output_tokens:12000,
           reasoning:{effort:"low"},
-          text:{verbosity:"low",format:{type:"json_schema",name:"product_comparison_traceable_v39",strict:true,schema}}
+          text:{verbosity:"low",format:{type:"json_schema",name:"product_comparison_traceable_v40",strict:true,schema}}
         }),
         signal:controller.signal
       });
@@ -147,7 +147,7 @@ PRODUCTOS:\n${block}`;
     if(!response.ok){
       let apiError={}; try{apiError=JSON.parse(raw);}catch{}
       console.error("OpenAI error:",raw.slice(0,4000));
-      return res.status(502).json({error:"OpenAI devolvió un error.",status:response.status,details:apiError?.error?.message||raw.slice(0,1500),researchId,researchVersion});
+      return res.status(502).json({error:"OpenAI devolvió un error.",status:response.status,details:apiError?.error?.message||raw.slice(0,1500),code:apiError?.error?.code||null,type:apiError?.error?.type||null,researchId,researchVersion});
     }
 
     let apiData;
